@@ -31,17 +31,7 @@ func Serialize(w io.Writer, file *KtFile) (err error) {
 			} else {
 				_, err = fmt.Fprintf(w, "\nfun %s() {\n", fn.Name)
 				level++
-
 				err = writeStatements(w, fn.Body.Statements, level)
-				//for _, st := range fn.Body.Statements {
-				//	_, err = fmt.Fprint(w, "\n")
-				//	for i := 0; i < level; i++ {
-				//		_, err = fmt.Fprintf(w, defaultIndent)
-				//	}
-				//
-				//	err = writeStatement(w, &st)
-				//}
-
 				_, err = fmt.Fprintf(w, "\n}")
 				level--
 			}
