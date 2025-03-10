@@ -2,40 +2,43 @@ package kotlin
 
 import (
 	"c2k/internal/app/curl"
+	"slices"
 	"strings"
 )
 
-const (
-	httpClient  SimpleId = "HttpClient"
-	requestGet  SimpleId = "get"
-	requestPost SimpleId = "post"
-	bodyAsText  SimpleId = "bodyAsText"
-	runBlocking SimpleId = "runBlocking"
-)
+var clientPackage = Fqn{"io", "ktor", "client"}
+var clientRequestPackage = Fqn{"io", "ktor", "client", "request"}
+var clientStatementPackage = Fqn{"io", "ktor", "client", "statement"}
+var httpPackage = Fqn{"io", "ktor", "http"}
+var coroutinesPackage = Fqn{"kotlinx", "coroutines"}
 
-var clientSymbolsMap = map[SimpleId]Fqn{
-	httpClient:  {},
-	requestGet:  {"request"},
-	requestPost: {"request"},
-	bodyAsText:  {"statement"},
-}
-
-var coroutinesSymbolsMap = map[SimpleId]Fqn{
-	runBlocking: {},
-}
+var funcMethods = map[SimpleId]struct{}{"get": {}, "post": {}, "patch": {}, "head": {}, "options": {}, "delete": {}, "put": {}}
 
 func GenAst(request *curl.Request) (file KtFile, err error) {
-
-	file.ImportList = append(file.ImportList, Import{Id: clientPackageFor(httpClient)})
-
-	if curl.PostMethod == request.Method {
-		file.ImportList = append(file.ImportList, Import{Id: clientPackageFor(requestPost)})
-	} else {
-		file.ImportList = append(file.ImportList, Import{Id: clientPackageFor(requestGet)})
+	methodFunc := SimpleId(strings.ToLower(request.Method))
+	customMethod := false
+	if _, ok := funcMethods[SimpleId(strings.ToLower(request.Method))]; !ok {
+		customMethod = true
+		methodFunc = "request"
 	}
 
-	file.ImportList = append(file.ImportList, Import{Id: clientPackageFor(bodyAsText)})
-	file.ImportList = append(file.ImportList, Import{Id: coroutinesPackageFor(runBlocking)})
+	addImportFor(&file, methodFunc, clientRequestPackage)
+
+	var clientCall CallExpr
+	if !customMethod {
+		clientCall = CallExpr{Receiver: "client", Method: methodFunc, ValueArgs: []any{
+			StringLiteral(request.Url),
+		}}
+	} else {
+		clientCall = CallExpr{Receiver: "client", Method: methodFunc, ValueArgs: []any{
+			StringLiteral(request.Url),
+			LambdaLiteral{Statements: []any{
+				PropAssignment{Prop: "method", Expr: CtorInvoke{Type: UserType{"HttpMethod"}, ValueArgs: []any{StringLiteral(request.Method)}}},
+			}},
+		}}
+
+		addImportFor(&file, "HttpMethod", httpPackage)
+	}
 
 	file.TopLevels = append(file.TopLevels, FuncDecl{
 		Name: "main",
@@ -46,10 +49,8 @@ func GenAst(request *curl.Request) (file KtFile, err error) {
 					Assignment: CtorInvoke{Type: UserType{"HttpClient"}},
 				},
 				VarDecl{
-					Name: "response",
-					Assignment: CallExpr{Receiver: "client", Method: SimpleId(strings.ToLower(string(request.Method))), ValueArgs: []any{
-						StringLiteral(request.Url),
-					}},
+					Name:       "response",
+					Assignment: clientCall,
 				},
 				CallExpr{
 					Method: "print",
@@ -61,31 +62,25 @@ func GenAst(request *curl.Request) (file KtFile, err error) {
 		}},
 	})
 
+	addImportFor(&file, "runBlocking", coroutinesPackage)
+	addImportFor(&file, "HttpClient", clientPackage)
+	addImportFor(&file, "bodyAsText", clientStatementPackage)
+
+	slices.SortFunc(file.ImportList, func(a, b Import) int {
+		for i, p := range a.fqn {
+			if ord := strings.Compare(string(p), string(b.fqn[i])); ord != 0 {
+				return ord
+			}
+		}
+
+		return len(a.fqn) - len(b.fqn)
+	})
+
 	return
 }
 
-func coroutinesPackageFor(symbol SimpleId) (result Fqn) {
-	// TODO: Introduce asserts which only work in the debug mode (see go:generate)
-	if fqn, ok := coroutinesSymbolsMap[symbol]; ok {
-		clientPackage := []SimpleId{"kotlinx", "coroutines"}
-		result = append(clientPackage, fqn...)
-		result = append(result, symbol)
-	} else {
-		panic("coroutines: package for " + symbol + " not found")
-	}
-
-	return
-}
-
-func clientPackageFor(symbol SimpleId) (result Fqn) {
-	// TODO: Introduce asserts which only work in the debug mode (see go:generate)
-	if fqn, ok := clientSymbolsMap[symbol]; ok {
-		clientPackage := []SimpleId{"io", "ktor", "client"}
-		result = append(clientPackage, fqn...)
-		result = append(result, symbol)
-	} else {
-		panic("client: package for " + symbol + " not found")
-	}
-
-	return
+func addImportFor(file *KtFile, symbol SimpleId, pack Fqn) {
+	fqn := append([]SimpleId{}, pack...)
+	fqn = append(fqn, symbol)
+	file.ImportList = append(file.ImportList, Import{fqn: fqn})
 }

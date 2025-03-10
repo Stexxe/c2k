@@ -36,7 +36,7 @@ type CallExpr struct {
 type UserType Fqn
 
 type Import struct {
-	Id Fqn
+	fqn Fqn
 }
 
 type Fqn []SimpleId
@@ -46,4 +46,9 @@ type StringLiteral string
 
 type LambdaLiteral struct {
 	Statements []any // Statement
+}
+
+type PropAssignment struct {
+	Prop SimpleId
+	Expr any
 }

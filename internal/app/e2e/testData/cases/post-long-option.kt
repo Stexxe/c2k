@@ -1,4 +1,4 @@
-// curl -X POST https://httpbin.org/post
+// curl --request POST https://httpbin.org/post
 import io.ktor.client.HttpClient
 import io.ktor.client.request.post
 import io.ktor.client.statement.bodyAsText

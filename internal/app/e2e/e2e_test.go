@@ -73,7 +73,7 @@ func TestConversion(t *testing.T) {
 		)
 
 		if len(diff) != 0 {
-			t.Fatalf("%s: %s", e.Name(), diff)
+			t.Fatalf("%s: %s\n\n---Actual---\n%s", e.Name(), diff, actual.String())
 		}
 	}
 }

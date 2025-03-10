@@ -15,7 +15,7 @@ func Serialize(w io.Writer, file *KtFile) (err error) {
 		_, err = fmt.Fprintf(w, "%s", sep)
 		sep = "\n"
 		_, err = fmt.Fprint(w, "import ")
-		err = writeFqn(w, &imp.Id)
+		err = writeFqn(w, &imp.fqn)
 	}
 
 	_, err = fmt.Fprintln(w)
@@ -57,10 +57,7 @@ func writeStatements(w io.Writer, statements []any, level int) (err error) {
 	for _, st := range statements {
 		_, err = fmt.Fprint(w, sep)
 		sep = "\n"
-		for i := 0; i < level; i++ {
-			_, err = fmt.Fprintf(w, defaultIndent)
-		}
-
+		err = writeIdent(w, level)
 		err = writeStatement(w, &st, level)
 	}
 
@@ -87,6 +84,9 @@ func writeStatement(w io.Writer, st *any, level int) (err error) {
 			_, err = fmt.Fprint(w, " ")
 			err = writeExpr(w, &vd.Assignment, level)
 		}
+	case PropAssignment:
+		_, err = fmt.Fprintf(w, "%s = ", st.Prop)
+		err = writeExpr(w, &st.Expr, level)
 	default:
 		err = writeExpr(w, &st, level)
 	}
@@ -97,7 +97,7 @@ func writeExpr(w io.Writer, expr *any, level int) (err error) {
 	switch expr := (*expr).(type) {
 	case CtorInvoke:
 		err = writeFqn(w, (*Fqn)(&expr.Type))
-		_, err = fmt.Fprint(w, "()")
+		err = writeValueArgs(w, expr.ValueArgs, level)
 	case CallExpr:
 		if expr.Receiver != "" {
 			_, err = fmt.Fprintf(w, "%s.%s", expr.Receiver, expr.Method)
@@ -105,24 +105,7 @@ func writeExpr(w io.Writer, expr *any, level int) (err error) {
 			_, err = fmt.Fprintf(w, "%s", expr.Method)
 		}
 
-		onlyLambda := false
-		if len(expr.ValueArgs) == 1 {
-			_, onlyLambda = expr.ValueArgs[0].(LambdaLiteral)
-		}
-
-		if onlyLambda {
-			err = writeExpr(w, &expr.ValueArgs[0], level)
-		} else {
-			_, err = fmt.Fprint(w, "(")
-			sep := ""
-			for _, va := range expr.ValueArgs {
-				_, err = fmt.Fprintf(w, sep)
-				sep = ", "
-				err = writeExpr(w, &va, level)
-			}
-
-			_, err = fmt.Fprint(w, ")")
-		}
+		err = writeValueArgs(w, expr.ValueArgs, level)
 	case StringLiteral:
 		_, err = fmt.Fprint(w, "\"")
 		for _, r := range expr {
@@ -137,7 +120,57 @@ func writeExpr(w io.Writer, expr *any, level int) (err error) {
 	case LambdaLiteral:
 		_, err = fmt.Fprint(w, " {\n")
 		err = writeStatements(w, expr.Statements, level+1)
-		_, err = fmt.Fprint(w, "\n}")
+		_, err = fmt.Fprintln(w)
+		err = writeIdent(w, level)
+		_, err = fmt.Fprint(w, "}")
+	}
+
+	return
+}
+
+func writeValueArgs(w io.Writer, args []any, level int) (err error) {
+	onlyLambda := false
+	if len(args) == 1 {
+		_, onlyLambda = args[0].(LambdaLiteral)
+	}
+
+	if onlyLambda {
+		err = writeExpr(w, &args[0], level)
+	} else {
+		_, err = fmt.Fprint(w, "(")
+
+		if len(args) == 0 {
+			_, err = fmt.Fprint(w, ")")
+		} else {
+			sep := ""
+			var i int
+			var va any
+			for i, va = range args {
+				if i == len(args)-1 { // Last
+					if _, ok := va.(LambdaLiteral); ok {
+						_, err = fmt.Fprint(w, ")")
+						err = writeExpr(w, &va, level)
+					} else {
+						_, err = fmt.Fprintf(w, sep)
+						sep = ", "
+						err = writeExpr(w, &va, level)
+						_, err = fmt.Fprint(w, ")")
+					}
+				} else {
+					_, err = fmt.Fprintf(w, sep)
+					sep = ", "
+					err = writeExpr(w, &va, level)
+				}
+			}
+		}
+	}
+
+	return
+}
+
+func writeIdent(w io.Writer, level int) (err error) {
+	for i := 0; i < level; i++ {
+		_, err = fmt.Fprintf(w, defaultIndent)
 	}
 
 	return
