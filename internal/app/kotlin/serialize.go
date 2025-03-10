@@ -124,7 +124,16 @@ func writeExpr(w io.Writer, expr *any, level int) (err error) {
 			_, err = fmt.Fprint(w, ")")
 		}
 	case StringLiteral:
-		_, err = fmt.Fprintf(w, "\"%s\"", expr) // TODO: Escape " symbol
+		_, err = fmt.Fprint(w, "\"")
+		for _, r := range expr {
+			if r != '"' && r != '\\' {
+				_, err = fmt.Fprintf(w, "%c", r)
+			} else {
+				_, err = fmt.Fprintf(w, "\\%c", r)
+			}
+		}
+
+		_, err = fmt.Fprint(w, "\"")
 	case LambdaLiteral:
 		_, err = fmt.Fprint(w, " {\n")
 		err = writeStatements(w, expr.Statements, level+1)

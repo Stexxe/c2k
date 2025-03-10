@@ -21,7 +21,7 @@ func TestConversion(t *testing.T) {
 	}
 
 	for _, e := range entries {
-		entryPath := filepath.Join(testDir, e.Name())
+		entryPath := filepath.Join(casesDir, e.Name())
 
 		b, err := os.ReadFile(entryPath)
 
