@@ -13,7 +13,8 @@ import (
 
 func TestConversion(t *testing.T) {
 	testDir := "testData"
-	entries, err := os.ReadDir(testDir)
+	casesDir := filepath.Join(testDir, "cases")
+	entries, err := os.ReadDir(casesDir)
 
 	if err != nil {
 		t.Fatal(err)
