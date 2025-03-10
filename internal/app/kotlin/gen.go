@@ -1,18 +1,23 @@
 package kotlin
 
-import "c2k/internal/app/curl"
+import (
+	"c2k/internal/app/curl"
+	"strings"
+)
 
 const (
 	httpClient  SimpleId = "HttpClient"
 	requestGet  SimpleId = "get"
+	requestPost SimpleId = "post"
 	bodyAsText  SimpleId = "bodyAsText"
 	runBlocking SimpleId = "runBlocking"
 )
 
 var clientSymbolsMap = map[SimpleId]Fqn{
-	httpClient: {},
-	requestGet: {"request"},
-	bodyAsText: {"statement"},
+	httpClient:  {},
+	requestGet:  {"request"},
+	requestPost: {"request"},
+	bodyAsText:  {"statement"},
 }
 
 var coroutinesSymbolsMap = map[SimpleId]Fqn{
@@ -20,8 +25,15 @@ var coroutinesSymbolsMap = map[SimpleId]Fqn{
 }
 
 func GenAst(request *curl.Request) (file KtFile, err error) {
+
 	file.ImportList = append(file.ImportList, Import{Id: clientPackageFor(httpClient)})
-	file.ImportList = append(file.ImportList, Import{Id: clientPackageFor(requestGet)})
+
+	if curl.PostMethod == request.Method {
+		file.ImportList = append(file.ImportList, Import{Id: clientPackageFor(requestPost)})
+	} else {
+		file.ImportList = append(file.ImportList, Import{Id: clientPackageFor(requestGet)})
+	}
+
 	file.ImportList = append(file.ImportList, Import{Id: clientPackageFor(bodyAsText)})
 	file.ImportList = append(file.ImportList, Import{Id: coroutinesPackageFor(runBlocking)})
 
@@ -35,7 +47,7 @@ func GenAst(request *curl.Request) (file KtFile, err error) {
 				},
 				VarDecl{
 					Name: "response",
-					Assignment: CallExpr{Receiver: "client", Method: "get", ValueArgs: []any{
+					Assignment: CallExpr{Receiver: "client", Method: SimpleId(strings.ToLower(string(request.Method))), ValueArgs: []any{
 						StringLiteral(request.Url),
 					}},
 				},

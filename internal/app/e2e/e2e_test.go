@@ -73,7 +73,7 @@ func TestConversion(t *testing.T) {
 		)
 
 		if len(diff) != 0 {
-			t.Fatalf("%s", diff)
+			t.Fatalf("%s: %s", e.Name(), diff)
 		}
 	}
 }
