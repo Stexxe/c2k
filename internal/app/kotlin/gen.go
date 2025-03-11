@@ -38,9 +38,6 @@ func GenAst(request *curl.Request) (file KtFile, err error) {
 
 		clientCall = CallExpr{Receiver: "client", Method: methodFunc, ValueArgs: []any{
 			StringLiteral(request.Url),
-			//LambdaLiteral{Statements: []any{
-			//	PropAssignment{Prop: "method", Expr: CtorInvoke{Type: UserType{"HttpMethod"}, ValueArgs: []any{StringLiteral(request.Method)}}},
-			//}},
 		}}
 
 		addImportFor(&file, "HttpMethod", httpPackage)
