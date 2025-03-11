@@ -25,19 +25,41 @@ func GenAst(request *curl.Request) (file KtFile, err error) {
 	addImportFor(&file, methodFunc, clientRequestPackage)
 
 	var clientCall CallExpr
+	var requestBuilder *LambdaLiteral = nil
+
 	if !customMethod {
 		clientCall = CallExpr{Receiver: "client", Method: methodFunc, ValueArgs: []any{
 			StringLiteral(request.Url),
 		}}
 	} else {
+		requestBuilder = &LambdaLiteral{Statements: []any{
+			PropAssignment{Prop: "method", Expr: CtorInvoke{Type: UserType{"HttpMethod"}, ValueArgs: []any{StringLiteral(request.Method)}}},
+		}}
+
 		clientCall = CallExpr{Receiver: "client", Method: methodFunc, ValueArgs: []any{
 			StringLiteral(request.Url),
-			LambdaLiteral{Statements: []any{
-				PropAssignment{Prop: "method", Expr: CtorInvoke{Type: UserType{"HttpMethod"}, ValueArgs: []any{StringLiteral(request.Method)}}},
-			}},
+			//LambdaLiteral{Statements: []any{
+			//	PropAssignment{Prop: "method", Expr: CtorInvoke{Type: UserType{"HttpMethod"}, ValueArgs: []any{StringLiteral(request.Method)}}},
+			//}},
 		}}
 
 		addImportFor(&file, "HttpMethod", httpPackage)
+	}
+
+	if len(request.Headers) > 0 {
+		if requestBuilder == nil {
+			requestBuilder = &LambdaLiteral{}
+		}
+
+		for _, h := range request.Headers {
+			requestBuilder.Statements = append(requestBuilder.Statements, CallExpr{Receiver: "headers", Method: "append", ValueArgs: []any{
+				StringLiteral(h.Name), StringLiteral(h.Value),
+			}})
+		}
+	}
+
+	if requestBuilder != nil {
+		clientCall.ValueArgs = append(clientCall.ValueArgs, *requestBuilder)
 	}
 
 	file.TopLevels = append(file.TopLevels, FuncDecl{

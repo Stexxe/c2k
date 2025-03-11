@@ -6,8 +6,13 @@ import (
 )
 
 type Request struct {
-	Url    string
-	Method string
+	Url     string
+	Method  string
+	Headers []Header
+}
+
+type Header struct {
+	Name, Value string
 }
 
 func ParseCommand(cmd []string) (request Request, err error) {
@@ -19,6 +24,9 @@ func ParseCommand(cmd []string) (request Request, err error) {
 				arg := args[i]
 				if (arg == "-X" || arg == "--request") && i+1 < len(args) {
 					request.Method = args[i+1]
+					i += 2
+				} else if arg == "-H" && i+1 < len(args) {
+					request.Headers = append(request.Headers, parseHeader(args[i+1]))
 					i += 2
 				} else {
 					break
@@ -35,6 +43,17 @@ func ParseCommand(cmd []string) (request Request, err error) {
 		}
 	} else {
 		err = fmt.Errorf("curl: invalid curl command '%s'", strings.Join(cmd, " "))
+	}
+
+	return
+}
+
+func parseHeader(header string) (h Header) {
+	parts := strings.Split(header, ":")
+
+	if len(parts) == 2 {
+		h.Name = strings.TrimSpace(parts[0])
+		h.Value = strings.TrimSpace(parts[1])
 	}
 
 	return

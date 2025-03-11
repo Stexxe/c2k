@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestConversion(t *testing.T) {
@@ -42,9 +43,8 @@ func TestConversion(t *testing.T) {
 		for ; i < len(b) && b[i] != '\n'; i++ {
 		}
 
-		cmd := string(b[start:i])
 		expContent := b[i+1:]
-		cmdParsed := strings.Split(cmd, " ")
+		cmdParsed := parseCurlCommand(b[start:i])
 
 		request, err := curl.ParseCommand(cmdParsed)
 
@@ -76,4 +76,53 @@ func TestConversion(t *testing.T) {
 			t.Fatalf("%s: %s\n\n---Actual---\n%s", e.Name(), diff, actual.String())
 		}
 	}
+}
+
+func parseCurlCommand(cmd []byte) (args []string) {
+	var argBuilder strings.Builder
+	inQuote := false
+	var quoteSym rune
+
+	for i := 0; i < len(cmd); {
+		r, sz := utf8.DecodeRune(cmd[i:])
+
+		if inQuote {
+			if r == quoteSym {
+				inQuote = false
+				args = append(args, argBuilder.String())
+				argBuilder.Reset()
+			} else {
+				argBuilder.WriteRune(r)
+			}
+		} else {
+			if r == ' ' {
+				if argBuilder.Len() > 0 {
+					args = append(args, argBuilder.String())
+					argBuilder.Reset()
+				}
+			} else if r == '\'' || r == '"' {
+				inQuote = true
+				quoteSym = r
+			} else if r == '\\' {
+				nextRune, nextSize := utf8.DecodeRune(cmd[i+sz:])
+
+				if nextRune == '\'' || nextRune == '"' || nextRune == '\\' {
+					argBuilder.WriteRune(nextRune)
+					i += nextSize
+				} else {
+					argBuilder.WriteRune(r)
+				}
+			} else {
+				argBuilder.WriteRune(r)
+			}
+		}
+
+		i += sz
+	}
+
+	if argBuilder.Len() > 0 {
+		args = append(args, argBuilder.String())
+	}
+
+	return
 }
