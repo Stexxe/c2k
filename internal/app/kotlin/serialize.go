@@ -98,13 +98,11 @@ func writeExpr(w io.Writer, expr *any, level int) (err error) {
 	case CtorInvoke:
 		err = writeFqn(w, (*Fqn)(&expr.Type))
 		err = writeValueArgs(w, expr.ValueArgs, level)
-	case CallExpr:
-		if expr.Receiver != "" {
-			_, err = fmt.Fprintf(w, "%s.%s", expr.Receiver, expr.Method)
-		} else {
-			_, err = fmt.Fprintf(w, "%s", expr.Method)
-		}
-
+	case MethodCall:
+		_, err = fmt.Fprintf(w, "%s.%s", expr.Receiver, expr.Method)
+		err = writeValueArgs(w, expr.ValueArgs, level)
+	case FuncCall:
+		_, err = fmt.Fprintf(w, "%s", expr.Name)
 		err = writeValueArgs(w, expr.ValueArgs, level)
 	case StringLiteral:
 		_, err = fmt.Fprint(w, "\"")

@@ -27,9 +27,14 @@ type CtorInvoke struct {
 	ValueArgs []any // Value argument -> Expression
 }
 
-type CallExpr struct {
+type MethodCall struct {
 	Receiver  SimpleId
 	Method    SimpleId
+	ValueArgs []any // Value argument -> Expression
+}
+
+type FuncCall struct {
+	Name      SimpleId
 	ValueArgs []any // Value argument -> Expression
 }
 

@@ -25,11 +25,11 @@ func GenAst(request *curl.Request) (file KtFile, err error) {
 
 	addImportFor(&file, methodFunc, clientRequestPackage)
 
-	var clientCall CallExpr
+	var clientCall MethodCall
 	var requestBuilder *LambdaLiteral = nil
 
 	if !customMethod {
-		clientCall = CallExpr{Receiver: "client", Method: methodFunc, ValueArgs: []any{
+		clientCall = MethodCall{Receiver: "client", Method: methodFunc, ValueArgs: []any{
 			StringLiteral(request.Url),
 		}}
 	} else {
@@ -37,7 +37,7 @@ func GenAst(request *curl.Request) (file KtFile, err error) {
 			PropAssignment{Prop: "method", Expr: CtorInvoke{Type: UserType{"HttpMethod"}, ValueArgs: []any{StringLiteral(request.Method)}}},
 		}}
 
-		clientCall = CallExpr{Receiver: "client", Method: methodFunc, ValueArgs: []any{
+		clientCall = MethodCall{Receiver: "client", Method: methodFunc, ValueArgs: []any{
 			StringLiteral(request.Url),
 		}}
 
@@ -50,7 +50,7 @@ func GenAst(request *curl.Request) (file KtFile, err error) {
 		}
 
 		for _, h := range request.Headers {
-			requestBuilder.Statements = append(requestBuilder.Statements, CallExpr{Receiver: "headers", Method: "append", ValueArgs: []any{
+			requestBuilder.Statements = append(requestBuilder.Statements, MethodCall{Receiver: "headers", Method: "append", ValueArgs: []any{
 				StringLiteral(h.Name), StringLiteral(h.Value),
 			}})
 		}
@@ -62,12 +62,12 @@ func GenAst(request *curl.Request) (file KtFile, err error) {
 		var appends []any
 
 		for _, p := range b {
-			appends = append(appends, CallExpr{Method: "append", ValueArgs: []any{StringLiteral(p.Name), StringLiteral(p.Value)}})
+			appends = append(appends, FuncCall{Name: "append", ValueArgs: []any{StringLiteral(p.Name), StringLiteral(p.Value)}})
 		}
 
-		requestBuilder.Statements = append(requestBuilder.Statements, CallExpr{Method: "setBody", ValueArgs: []any{
+		requestBuilder.Statements = append(requestBuilder.Statements, FuncCall{Name: "setBody", ValueArgs: []any{
 			CtorInvoke{Type: UserType{"FormDataContent"}, ValueArgs: []any{
-				CallExpr{Method: "parameters", ValueArgs: []any{
+				FuncCall{Name: "parameters", ValueArgs: []any{
 					LambdaLiteral{Statements: appends},
 				}},
 			}},
@@ -84,7 +84,7 @@ func GenAst(request *curl.Request) (file KtFile, err error) {
 
 	file.TopLevels = append(file.TopLevels, FuncDecl{
 		Name: "main",
-		Expr: CallExpr{Method: "runBlocking", ValueArgs: []any{
+		Expr: FuncCall{Name: "runBlocking", ValueArgs: []any{
 			LambdaLiteral{Statements: []any{
 				VarDecl{
 					Name:       "client",
@@ -94,10 +94,10 @@ func GenAst(request *curl.Request) (file KtFile, err error) {
 					Name:       "response",
 					Assignment: clientCall,
 				},
-				CallExpr{
-					Method: "print",
+				FuncCall{
+					Name: "print",
 					ValueArgs: []any{
-						CallExpr{Receiver: "response", Method: "bodyAsText"},
+						MethodCall{Receiver: "response", Method: "bodyAsText"},
 					},
 				},
 			}},
