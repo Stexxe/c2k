@@ -8,6 +8,7 @@ import (
 
 var clientPackage = Fqn{"io", "ktor", "client"}
 var clientRequestPackage = Fqn{"io", "ktor", "client", "request"}
+var formsPackage = Fqn{"io", "ktor", "client", "request", "forms"}
 var clientStatementPackage = Fqn{"io", "ktor", "client", "statement"}
 var httpPackage = Fqn{"io", "ktor", "http"}
 var coroutinesPackage = Fqn{"kotlinx", "coroutines"}
@@ -53,6 +54,28 @@ func GenAst(request *curl.Request) (file KtFile, err error) {
 				StringLiteral(h.Name), StringLiteral(h.Value),
 			}})
 		}
+	}
+
+	switch b := request.Body.(type) {
+	case []curl.FormParam:
+		requestBuilder = &LambdaLiteral{}
+		var appends []any
+
+		for _, p := range b {
+			appends = append(appends, CallExpr{Method: "append", ValueArgs: []any{StringLiteral(p.Name), StringLiteral(p.Value)}})
+		}
+
+		requestBuilder.Statements = append(requestBuilder.Statements, CallExpr{Method: "setBody", ValueArgs: []any{
+			CtorInvoke{Type: UserType{"FormDataContent"}, ValueArgs: []any{
+				CallExpr{Method: "parameters", ValueArgs: []any{
+					LambdaLiteral{Statements: appends},
+				}},
+			}},
+		}})
+
+		addImportFor(&file, "FormDataContent", formsPackage)
+		addImportFor(&file, "parameters", httpPackage)
+		addImportFor(&file, "setBody", clientRequestPackage)
 	}
 
 	if requestBuilder != nil {
