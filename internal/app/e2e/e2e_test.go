@@ -59,7 +59,7 @@ func TestConversion(t *testing.T) {
 		}
 
 		var actual strings.Builder
-		err = kotlin.Serialize(&actual, &ktFile)
+		err = kotlin.Serialize(&actual, ktFile)
 
 		if err != nil {
 			t.Fatal(err)

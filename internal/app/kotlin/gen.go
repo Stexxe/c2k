@@ -6,42 +6,38 @@ import (
 	"strings"
 )
 
-var clientPackage = Fqn{"io", "ktor", "client"}
-var clientRequestPackage = Fqn{"io", "ktor", "client", "request"}
-var formsPackage = Fqn{"io", "ktor", "client", "request", "forms"}
-var clientStatementPackage = Fqn{"io", "ktor", "client", "statement"}
-var httpPackage = Fqn{"io", "ktor", "http"}
-var coroutinesPackage = Fqn{"kotlinx", "coroutines"}
+func GenAst(request *curl.Request) (file *KtFile, err error) {
+	file = new(KtFile)
+	builderFound := false
+	methodFunc := requestRequest
 
-var funcMethods = map[SimpleId]struct{}{"get": {}, "post": {}, "patch": {}, "head": {}, "options": {}, "delete": {}, "put": {}}
-
-func GenAst(request *curl.Request) (file KtFile, err error) {
-	methodFunc := SimpleId(strings.ToLower(request.Method))
-	customMethod := false
-	if _, ok := funcMethods[SimpleId(strings.ToLower(request.Method))]; !ok {
-		customMethod = true
-		methodFunc = "request"
+	for _, sym := range builders {
+		if sym.Name == SimpleId(strings.ToLower(request.Method)) {
+			methodFunc = sym
+			builderFound = true
+			break
+		}
 	}
 
-	addImportFor(&file, methodFunc, clientRequestPackage)
+	useSymbol(file, methodFunc)
 
 	var clientCall MethodCall
 	var requestBuilder *LambdaLiteral = nil
 
-	if !customMethod {
-		clientCall = MethodCall{Receiver: "client", Method: methodFunc, ValueArgs: []any{
+	if builderFound {
+		clientCall = MethodCall{Receiver: "client", Method: methodFunc.Name, ValueArgs: []any{
 			StringLiteral(request.Url),
 		}}
 	} else {
 		requestBuilder = &LambdaLiteral{Statements: []any{
-			PropAssignment{Prop: "method", Expr: CtorInvoke{Type: UserType{"HttpMethod"}, ValueArgs: []any{StringLiteral(request.Method)}}},
+			PropAssignment{Prop: "method", Expr: CtorInvoke{Type: UserType{httpMethod.Name}, ValueArgs: []any{StringLiteral(request.Method)}}},
 		}}
 
-		clientCall = MethodCall{Receiver: "client", Method: methodFunc, ValueArgs: []any{
+		clientCall = MethodCall{Receiver: "client", Method: methodFunc.Name, ValueArgs: []any{
 			StringLiteral(request.Url),
 		}}
 
-		addImportFor(&file, "HttpMethod", httpPackage)
+		useSymbol(file, httpMethod)
 	}
 
 	if len(request.Headers) > 0 {
@@ -65,17 +61,17 @@ func GenAst(request *curl.Request) (file KtFile, err error) {
 			appends = append(appends, FuncCall{Name: "append", ValueArgs: []any{StringLiteral(p.Name), StringLiteral(p.Value)}})
 		}
 
-		requestBuilder.Statements = append(requestBuilder.Statements, FuncCall{Name: "setBody", ValueArgs: []any{
-			CtorInvoke{Type: UserType{"FormDataContent"}, ValueArgs: []any{
-				FuncCall{Name: "parameters", ValueArgs: []any{
+		requestBuilder.Statements = append(requestBuilder.Statements, FuncCall{Name: setBody.Name, ValueArgs: []any{
+			CtorInvoke{Type: UserType{formDataContent.Name}, ValueArgs: []any{
+				FuncCall{Name: parameters.Name, ValueArgs: []any{
 					LambdaLiteral{Statements: appends},
 				}},
 			}},
 		}})
 
-		addImportFor(&file, "FormDataContent", formsPackage)
-		addImportFor(&file, "parameters", httpPackage)
-		addImportFor(&file, "setBody", clientRequestPackage)
+		useSymbol(file, formDataContent)
+		useSymbol(file, parameters)
+		useSymbol(file, setBody)
 	}
 
 	if requestBuilder != nil {
@@ -84,11 +80,11 @@ func GenAst(request *curl.Request) (file KtFile, err error) {
 
 	file.TopLevels = append(file.TopLevels, FuncDecl{
 		Name: "main",
-		Expr: FuncCall{Name: "runBlocking", ValueArgs: []any{
+		Expr: FuncCall{Name: runBlocking.Name, ValueArgs: []any{
 			LambdaLiteral{Statements: []any{
 				VarDecl{
 					Name:       "client",
-					Assignment: CtorInvoke{Type: UserType{"HttpClient"}},
+					Assignment: CtorInvoke{Type: UserType{httpClient.Name}},
 				},
 				VarDecl{
 					Name:       "response",
@@ -97,16 +93,16 @@ func GenAst(request *curl.Request) (file KtFile, err error) {
 				FuncCall{
 					Name: "print",
 					ValueArgs: []any{
-						MethodCall{Receiver: "response", Method: "bodyAsText"},
+						MethodCall{Receiver: "response", Method: bodyAsText.Name},
 					},
 				},
 			}},
 		}},
 	})
 
-	addImportFor(&file, "runBlocking", coroutinesPackage)
-	addImportFor(&file, "HttpClient", clientPackage)
-	addImportFor(&file, "bodyAsText", clientStatementPackage)
+	useSymbol(file, runBlocking)
+	useSymbol(file, httpClient)
+	useSymbol(file, bodyAsText)
 
 	slices.SortFunc(file.ImportList, func(a, b Import) int {
 		for i, p := range a.fqn {
@@ -121,8 +117,8 @@ func GenAst(request *curl.Request) (file KtFile, err error) {
 	return
 }
 
-func addImportFor(file *KtFile, symbol SimpleId, pack Fqn) {
-	fqn := append([]SimpleId{}, pack...)
-	fqn = append(fqn, symbol)
+func useSymbol(file *KtFile, symbol *symbol) {
+	fqn := append(Fqn{}, *symbol.Package...)
+	fqn = append(fqn, symbol.Name)
 	file.ImportList = append(file.ImportList, Import{fqn: fqn})
 }
