@@ -5,6 +5,11 @@ import (
 	"strings"
 )
 
+type Command struct {
+	FollowRedirects bool
+	Request         *Request
+}
+
 type Request struct {
 	Url     string
 	Method  string
@@ -23,12 +28,17 @@ const (
 	HeaderOption
 	MethodOption
 	DataOption
+	LocationOption
 )
 
 var oneArgOptions = map[string]curlOption{
 	"-H": HeaderOption, "--header": HeaderOption,
 	"-X": MethodOption, "--request": MethodOption,
 	"-d": DataOption, "--data": DataOption,
+}
+
+var flagOptions = map[string]curlOption{
+	"-L": LocationOption, "--location": LocationOption,
 }
 
 type curlOptionInstance struct {
@@ -40,8 +50,10 @@ type FormParam struct {
 	Name, Value string
 }
 
-func ParseCommand(cmd []string) (request Request, err error) {
+func ParseCommand(cmd []string) (command *Command, err error) {
 	var options []curlOptionInstance
+	request := &Request{}
+	command = &Command{Request: request}
 
 	if len(cmd) > 0 && cmd[0] == "curl" {
 		if len(cmd) > 1 {
@@ -54,6 +66,9 @@ func ParseCommand(cmd []string) (request Request, err error) {
 						if opt, ok := oneArgOptions[arg]; ok {
 							options = append(options, curlOptionInstance{option: opt, value: args[i+1 : i+2]})
 							i += 2
+						} else if opt, ok := flagOptions[arg]; ok {
+							options = append(options, curlOptionInstance{option: opt})
+							i += 1
 						} else {
 							err = fmt.Errorf("curl: unexpected option %s", arg)
 							i += len(args) - i
@@ -63,14 +78,23 @@ func ParseCommand(cmd []string) (request Request, err error) {
 						var ok bool
 						argBytes := []byte(arg)
 						end := len(argBytes)
+						isFlag := false
 
 						for ; end > 0; end-- {
 							if opt, ok = oneArgOptions[string(argBytes[0:end])]; ok {
 								break
 							}
+
+							if opt, ok = flagOptions[string(argBytes[0:end])]; ok {
+								isFlag = true
+								break
+							}
 						}
 
-						if opt != UnknownOption {
+						if isFlag {
+							options = append(options, curlOptionInstance{option: opt})
+							i += 1
+						} else if opt != UnknownOption {
 							if end == len(argBytes) {
 								options = append(options, curlOptionInstance{option: opt, value: args[i+1 : i+2]})
 								i += 2
@@ -106,6 +130,8 @@ func ParseCommand(cmd []string) (request Request, err error) {
 					if request.Method == "" {
 						request.Method = "POST"
 					}
+				case LocationOption:
+					command.FollowRedirects = true
 				case UnknownOption:
 					err = fmt.Errorf("curl: unknown option")
 				}

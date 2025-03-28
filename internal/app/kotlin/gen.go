@@ -6,10 +6,11 @@ import (
 	"strings"
 )
 
-func GenAst(request *curl.Request) (file *KtFile, err error) {
-	file = new(KtFile)
+func GenAst(command *curl.Command) (file *KtFile, err error) {
+	file = &KtFile{}
 	builderFound := false
 	methodFunc := requestRequest
+	request := command.Request
 
 	for _, sym := range builders {
 		if sym.Name == SimpleId(strings.ToLower(request.Method)) {
@@ -78,13 +79,21 @@ func GenAst(request *curl.Request) (file *KtFile, err error) {
 		clientCall.ValueArgs = append(clientCall.ValueArgs, *requestBuilder)
 	}
 
+	var ctorArgs []any
+
+	if !command.FollowRedirects { // Ktor follows redirects by default
+		ctorArgs = append(ctorArgs, LambdaLiteral{Statements: []any{
+			PropAssignment{Prop: "followRedirects", Expr: BoolLiteral(command.FollowRedirects)},
+		}})
+	}
+
 	file.TopLevels = append(file.TopLevels, FuncDecl{
 		Name: "main",
 		Expr: FuncCall{Name: runBlocking.Name, ValueArgs: []any{
 			LambdaLiteral{Statements: []any{
 				VarDecl{
 					Name:       "client",
-					Assignment: CtorInvoke{Type: UserType{httpClient.Name}},
+					Assignment: CtorInvoke{Type: UserType{httpClient.Name}, ValueArgs: ctorArgs},
 				},
 				VarDecl{
 					Name:       "response",

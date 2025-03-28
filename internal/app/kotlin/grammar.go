@@ -48,6 +48,7 @@ type Fqn []SimpleId
 type SimpleId string
 
 type StringLiteral string
+type BoolLiteral bool
 
 type LambdaLiteral struct {
 	Statements []any // Statement

@@ -46,13 +46,13 @@ func TestConversion(t *testing.T) {
 		expContent := b[i+1:]
 		cmdParsed := parseCurlCommand(b[start:i])
 
-		request, err := curl.ParseCommand(cmdParsed)
+		command, err := curl.ParseCommand(cmdParsed)
 
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		ktFile, err := kotlin.GenAst(&request)
+		ktFile, err := kotlin.GenAst(command)
 
 		if err != nil {
 			t.Fatal(err)

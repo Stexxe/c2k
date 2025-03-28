@@ -6,7 +6,9 @@ import io.ktor.http.HttpMethod
 import kotlinx.coroutines.runBlocking
 
 fun main() = runBlocking {
-    val client = HttpClient()
+    val client = HttpClient {
+        followRedirects = false
+    }
     val response = client.request("https://httpbin.org/anything") {
         method = HttpMethod("SOME")
     }

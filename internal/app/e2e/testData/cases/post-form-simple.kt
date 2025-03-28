@@ -8,7 +8,9 @@ import io.ktor.http.parameters
 import kotlinx.coroutines.runBlocking
 
 fun main() = runBlocking {
-    val client = HttpClient()
+    val client = HttpClient {
+        followRedirects = false
+    }
     val response = client.post("https://httpbin.org/post") {
         setBody(FormDataContent(parameters {
             append("hello", "world")

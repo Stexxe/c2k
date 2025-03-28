@@ -115,6 +115,12 @@ func writeExpr(w io.Writer, expr *any, level int) (err error) {
 		}
 
 		_, err = fmt.Fprint(w, "\"")
+	case BoolLiteral:
+		if expr {
+			_, err = fmt.Fprint(w, "true")
+		} else {
+			_, err = fmt.Fprint(w, "false")
+		}
 	case LambdaLiteral:
 		_, err = fmt.Fprint(w, " {\n")
 		err = writeStatements(w, expr.Statements, level+1)
