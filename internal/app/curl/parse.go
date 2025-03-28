@@ -107,14 +107,12 @@ func ParseCommand(cmd []string) (command *Command, err error) {
 							i += len(args) - i
 						}
 					}
+				} else if strings.HasPrefix(arg, "http://") || strings.HasPrefix(arg, "https://") {
+					request.Url = arg
+					i += 1
 				} else {
-					if i == len(args)-1 {
-						request.Url = arg
-						i++
-					} else {
-						err = fmt.Errorf("curl: unexpected argument %s", arg)
-						i += len(args) - i
-					}
+					err = fmt.Errorf("curl: unexpected argument %s", arg)
+					i += len(args) - i
 				}
 			}
 

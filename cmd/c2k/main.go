@@ -14,19 +14,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	request, err := curl.ParseCommand(os.Args[1:])
+	command, err := curl.ParseCommand(os.Args[1:])
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	ktFile, err := kotlin.GenAst(&request)
+	ktFile, err := kotlin.GenAst(command)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = kotlin.Serialize(os.Stdout, &ktFile)
+	err = kotlin.Serialize(os.Stdout, ktFile)
 
 	if err != nil {
 		log.Fatal(err)
