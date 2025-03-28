@@ -29,12 +29,14 @@ const (
 	MethodOption
 	DataOption
 	LocationOption
+	FormOption
 )
 
 var oneArgOptions = map[string]curlOption{
 	"-H": HeaderOption, "--header": HeaderOption,
 	"-X": MethodOption, "--request": MethodOption,
 	"-d": DataOption, "--data": DataOption,
+	"-F": FormOption, "--form": FormOption,
 }
 
 var flagOptions = map[string]curlOption{
@@ -46,7 +48,19 @@ type curlOptionInstance struct {
 	value  []string
 }
 
+type UrlEncodedBody struct {
+	Params []FormParam
+}
+
+type FormDataBody struct {
+	Parts []FormPart
+}
+
 type FormParam struct {
+	Name, Value string
+}
+
+type FormPart struct {
 	Name, Value string
 }
 
@@ -116,6 +130,7 @@ func ParseCommand(cmd []string) (command *Command, err error) {
 				}
 			}
 
+			var formBody *FormDataBody
 			for _, inst := range options {
 				switch inst.option {
 				case HeaderOption:
@@ -123,13 +138,25 @@ func ParseCommand(cmd []string) (command *Command, err error) {
 				case MethodOption:
 					request.Method = inst.value[0]
 				case DataOption:
-					request.Body = parseFormData(inst.value[0])
+					// TODO: Join multiple data options
+					request.Body = UrlEncodedBody{Params: parseData(inst.value[0])}
 
 					if request.Method == "" {
 						request.Method = "POST"
 					}
 				case LocationOption:
 					command.FollowRedirects = true
+				case FormOption:
+					if formBody == nil {
+						formBody = &FormDataBody{}
+						request.Body = formBody
+					}
+
+					formBody.Parts = append(formBody.Parts, parseFormPart(inst.value[0]))
+
+					if request.Method == "" {
+						request.Method = "POST"
+					}
 				case UnknownOption:
 					err = fmt.Errorf("curl: unknown option")
 				}
@@ -160,7 +187,20 @@ func parseHeader(header string) (h Header) {
 	return
 }
 
-func parseFormData(str string) (params []FormParam) {
+func parseFormPart(str string) (param FormPart) {
+	parts := strings.Split(str, "=")
+
+	if len(parts) == 2 {
+		param.Name = parts[0]
+		param.Value = parts[1]
+	} else {
+		param.Name = parts[0]
+	}
+
+	return
+}
+
+func parseData(str string) (params []FormParam) {
 	for _, kv := range strings.Split(str, "&") {
 		param := FormParam{}
 		parts := strings.Split(kv, "=")

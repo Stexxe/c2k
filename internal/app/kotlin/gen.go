@@ -54,11 +54,11 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 	}
 
 	switch b := request.Body.(type) {
-	case []curl.FormParam:
+	case curl.UrlEncodedBody:
 		requestBuilder = &LambdaLiteral{}
 		var appends []any
 
-		for _, p := range b {
+		for _, p := range b.Params {
 			appends = append(appends, FuncCall{Name: "append", ValueArgs: []any{StringLiteral(p.Name), StringLiteral(p.Value)}})
 		}
 
@@ -72,6 +72,25 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 
 		useSymbol(file, formDataContent)
 		useSymbol(file, parameters)
+		useSymbol(file, setBody)
+	case *curl.FormDataBody:
+		requestBuilder = &LambdaLiteral{}
+		var appends []any
+
+		for _, p := range b.Parts {
+			appends = append(appends, FuncCall{Name: "append", ValueArgs: []any{StringLiteral(p.Name), StringLiteral(p.Value)}})
+		}
+
+		requestBuilder.Statements = append(requestBuilder.Statements, FuncCall{Name: setBody.Name, ValueArgs: []any{
+			CtorInvoke{Type: UserType{multipartContent.Name}, ValueArgs: []any{
+				FuncCall{Name: formData.Name, ValueArgs: []any{
+					LambdaLiteral{Statements: appends},
+				}},
+			}},
+		}})
+
+		useSymbol(file, multipartContent)
+		useSymbol(file, formData)
 		useSymbol(file, setBody)
 	}
 

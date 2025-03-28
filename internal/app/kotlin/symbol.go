@@ -33,5 +33,7 @@ var parameters = &symbol{"parameters", &httpPackage}
 var runBlocking = &symbol{"runBlocking", &coroutinesPackage}
 
 var formDataContent = &symbol{"FormDataContent", &formsPackage}
+var multipartContent = &symbol{"MultiPartFormDataContent", &formsPackage}
+var formData = &symbol{"formData", &formsPackage}
 
 var bodyAsText = &symbol{"bodyAsText", &clientStatementPackage}
