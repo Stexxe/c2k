@@ -198,6 +198,10 @@ func parseHeader(header string) (h Header) {
 	return
 }
 
+func isQuote(r rune) bool {
+	return r == '\'' || r == '"' || r == '”' || r == '“' || r == '‘' || r == '’'
+}
+
 func parseFormPart(str string) (param FormPart) {
 	parts := strings.Split(str, "=")
 
@@ -207,9 +211,12 @@ func parseFormPart(str string) (param FormPart) {
 		if strings.HasPrefix(parts[1], "@") {
 			param.Kind = FormPartFile
 			param.FilePath = strings.TrimPrefix(parts[1], "@")
+			param.FilePath = strings.TrimLeftFunc(param.FilePath, isQuote)
+			param.FilePath = strings.TrimRightFunc(param.FilePath, isQuote)
 		} else {
 			param.Kind = FormPartItem
 			param.Value = parts[1]
+
 		}
 	} else {
 		param.Name = parts[0]
