@@ -38,6 +38,16 @@ type FuncCall struct {
 	ValueArgs []any // Value argument -> Expression
 }
 
+type NamedArg struct {
+	Name  SimpleId
+	Value any // Expression
+}
+
+type PropAccess struct {
+	Object string
+	Prop   string
+}
+
 type UserType Fqn
 
 type Import struct {
@@ -51,6 +61,10 @@ type StringLiteral string
 type BoolLiteral bool
 
 type LambdaLiteral struct {
+	Statements []any // Statement
+}
+
+type InlineLambdaLiteral struct {
 	Statements []any // Statement
 }
 

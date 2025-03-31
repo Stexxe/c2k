@@ -60,8 +60,19 @@ type FormParam struct {
 	Name, Value string
 }
 
+type FormPartKind int
+
+const (
+	FormPartUnknown FormPartKind = iota
+	FormPartItem
+	FormPartFile
+)
+
 type FormPart struct {
-	Name, Value string
+	Kind     FormPartKind
+	Name     string
+	Value    string
+	FilePath string
 }
 
 func ParseCommand(cmd []string) (command *Command, err error) {
@@ -192,7 +203,14 @@ func parseFormPart(str string) (param FormPart) {
 
 	if len(parts) == 2 {
 		param.Name = parts[0]
-		param.Value = parts[1]
+
+		if strings.HasPrefix(parts[1], "@") {
+			param.Kind = FormPartFile
+			param.FilePath = strings.TrimPrefix(parts[1], "@")
+		} else {
+			param.Kind = FormPartItem
+			param.Value = parts[1]
+		}
 	} else {
 		param.Name = parts[0]
 	}

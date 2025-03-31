@@ -3,6 +3,7 @@ package kotlin
 import (
 	"fmt"
 	"io"
+	"log"
 )
 
 var defaultIndent = "    "
@@ -104,6 +105,8 @@ func writeExpr(w io.Writer, expr *any, level int) (err error) {
 	case FuncCall:
 		_, err = fmt.Fprintf(w, "%s", expr.Name)
 		err = writeValueArgs(w, expr.ValueArgs, level)
+	case PropAccess:
+		_, err = fmt.Fprintf(w, "%s.%s", expr.Object, expr.Prop)
 	case StringLiteral:
 		_, err = fmt.Fprint(w, "\"")
 		for _, r := range expr {
@@ -122,23 +125,43 @@ func writeExpr(w io.Writer, expr *any, level int) (err error) {
 			_, err = fmt.Fprint(w, "false")
 		}
 	case LambdaLiteral:
-		_, err = fmt.Fprint(w, " {\n")
+		_, err = fmt.Fprint(w, "{\n")
 		err = writeStatements(w, expr.Statements, level+1)
 		_, err = fmt.Fprintln(w)
 		err = writeIdent(w, level)
 		_, err = fmt.Fprint(w, "}")
+	case InlineLambdaLiteral:
+		if len(expr.Statements) != 1 {
+			log.Fatalf("expected 1 statement for InlineLambdaLiteral, got %d", len(expr.Statements))
+		}
+
+		_, err = fmt.Fprint(w, "{ ")
+		err = writeStatement(w, &expr.Statements[0], 0)
+		_, err = fmt.Fprint(w, " }")
 	}
 
 	return
 }
 
 func writeValueArgs(w io.Writer, args []any, level int) (err error) {
+	writeSimpleArg := func(va any) (err error) {
+		if arg, ok := va.(NamedArg); ok {
+			_, err = fmt.Fprintf(w, "%s = ", arg.Name)
+			err = writeExpr(w, &arg.Value, level)
+		} else {
+			err = writeExpr(w, &va, level)
+		}
+
+		return
+	}
+
 	onlyLambda := false
 	if len(args) == 1 {
 		_, onlyLambda = args[0].(LambdaLiteral)
 	}
 
 	if onlyLambda {
+		_, err = fmt.Fprint(w, " ")
 		err = writeExpr(w, &args[0], level)
 	} else {
 		_, err = fmt.Fprint(w, "(")
@@ -151,19 +174,21 @@ func writeValueArgs(w io.Writer, args []any, level int) (err error) {
 			var va any
 			for i, va = range args {
 				if i == len(args)-1 { // Last
-					if _, ok := va.(LambdaLiteral); ok {
-						_, err = fmt.Fprint(w, ")")
+					_, isLambdaLiteral := va.(LambdaLiteral)
+					_, isInlineLambdaLiteral := va.(InlineLambdaLiteral)
+					if isLambdaLiteral || isInlineLambdaLiteral {
+						_, err = fmt.Fprint(w, ") ")
 						err = writeExpr(w, &va, level)
 					} else {
 						_, err = fmt.Fprintf(w, sep)
 						sep = ", "
-						err = writeExpr(w, &va, level)
+						err = writeSimpleArg(va)
 						_, err = fmt.Fprint(w, ")")
 					}
 				} else {
 					_, err = fmt.Fprintf(w, sep)
 					sep = ", "
-					err = writeExpr(w, &va, level)
+					err = writeSimpleArg(va)
 				}
 			}
 		}

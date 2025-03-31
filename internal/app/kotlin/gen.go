@@ -2,6 +2,9 @@ package kotlin
 
 import (
 	"c2k/internal/app/curl"
+	"errors"
+	"fmt"
+	"path"
 	"slices"
 	"strings"
 )
@@ -75,16 +78,51 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 		useSymbol(file, setBody)
 	case *curl.FormDataBody:
 		requestBuilder = &LambdaLiteral{}
-		var appends []any
+		var fdStatements []any
 
 		for _, p := range b.Parts {
-			appends = append(appends, FuncCall{Name: "append", ValueArgs: []any{StringLiteral(p.Name), StringLiteral(p.Value)}})
+			switch p.Kind {
+			case curl.FormPartItem:
+				fdStatements = append(fdStatements, FuncCall{Name: "append", ValueArgs: []any{StringLiteral(p.Name), StringLiteral(p.Value)}})
+			case curl.FormPartFile:
+				fdStatements = append(fdStatements, VarDecl{Name: "file", Assignment: CtorInvoke{Type: UserType{fileCtor.Name}, ValueArgs: []any{StringLiteral(p.FilePath)}}})
+				useSymbol(file, fileCtor)
+				useSymbol(file, channelProvider)
+				useSymbol(file, readChannel)
+				chProvider := CtorInvoke{Type: UserType{channelProvider.Name}, ValueArgs: []any{
+					NamedArg{Name: "size", Value: MethodCall{Receiver: "file", Method: "length"}},
+					InlineLambdaLiteral{Statements: []any{MethodCall{Receiver: "file", Method: "readChannel"}}},
+				}}
+				headers := MethodCall{Receiver: "Headers", Method: "build", ValueArgs: []any{
+					LambdaLiteral{Statements: []any{
+						FuncCall{Name: "append", ValueArgs: []any{
+							PropAccess{Object: "HttpHeaders", Prop: "ContentType"},
+							StringLiteral("application/octet-stream"),
+						}},
+						FuncCall{Name: "append", ValueArgs: []any{
+							PropAccess{Object: "HttpHeaders", Prop: "ContentDisposition"},
+							StringLiteral(fmt.Sprintf("filename=\"%s\"", path.Base(p.FilePath))),
+						}},
+					}},
+				}}
+				useSymbol(file, headersObject)
+				useSymbol(file, httpHeadersObject)
+				fdStatements = append(fdStatements, FuncCall{Name: "append", ValueArgs: []any{
+					StringLiteral(p.Name),
+					chProvider,
+					headers,
+				}})
+			case curl.FormPartUnknown:
+				err = errors.New("unrecognized form part type")
+				return
+			}
+
 		}
 
 		requestBuilder.Statements = append(requestBuilder.Statements, FuncCall{Name: setBody.Name, ValueArgs: []any{
 			CtorInvoke{Type: UserType{multipartContent.Name}, ValueArgs: []any{
 				FuncCall{Name: formData.Name, ValueArgs: []any{
-					LambdaLiteral{Statements: appends},
+					LambdaLiteral{Statements: fdStatements},
 				}},
 			}},
 		}})
