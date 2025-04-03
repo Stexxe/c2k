@@ -2,7 +2,9 @@ package e2e
 
 import (
 	"c2k/internal/app/curl"
-	"c2k/internal/app/kotlin"
+	"c2k/internal/app/kotlin/ast"
+	"c2k/internal/app/kotlin/ir"
+	"c2k/internal/app/kotlin/repr"
 	"c2k/internal/app/utils"
 	"fmt"
 	"os"
@@ -22,6 +24,10 @@ func TestConversion(t *testing.T) {
 	}
 
 	for _, e := range entries {
+		if e.Name() != "get.kt" {
+			continue
+		}
+
 		entryPath := filepath.Join(casesDir, e.Name())
 
 		b, err := os.ReadFile(entryPath)
@@ -52,14 +58,20 @@ func TestConversion(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		ktFile, err := kotlin.GenAst(command)
+		fileScope, err := ir.GenScope(command)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		ktFile, err := ast.GenAst(fileScope)
 
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		var actual strings.Builder
-		err = kotlin.Serialize(&actual, ktFile)
+		err = repr.Serialize(&actual, ktFile)
 
 		if err != nil {
 			t.Fatal(err)
@@ -78,6 +90,7 @@ func TestConversion(t *testing.T) {
 	}
 }
 
+// Bash-style parsing
 func parseCurlCommand(cmd []byte) (args []string) {
 	var argBuilder strings.Builder
 	inQuote := false

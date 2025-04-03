@@ -1,29 +1,34 @@
-package kotlin
+package ast
 
-type Fqn []string
+import "c2k/internal/app/kotlin"
 
-//type KtFile struct {
-//	ImportList []Import
-//	TopLevels  []any // Top-level
-//}
-//
-//type FuncDecl struct {
-//	Name string
-//	Body Block
-//	Expr any // = expression
-//}
-//
-//type Block struct {
-//	Statements []any // Statement
-//}
-//
-//type VarDecl struct {
-//	Name           string
-//	Mutable        bool
-//	TypeAnnotation UserType
-//	Assignment     any // Expression
-//}
-//
+type KtFile struct {
+	ImportList []KtImport
+	TopLevels  []any // Top-level
+}
+
+type KtFuncDecl struct {
+	Name string
+	Body KtBlock
+	Expr any // = expression
+}
+
+type KtBlock struct {
+	Statements []any // Statement
+}
+
+type KtVarDecl struct {
+	Name       string
+	Mutable    bool
+	Assignment any // Expression
+}
+
+type KtInvocation struct {
+	Receiver  string
+	Method    string
+	ValueArgs []any // Value argument -> Expression
+}
+
 //type CtorInvoke struct {
 //	Type      UserType
 //	ValueArgs []any // Value argument -> Expression
@@ -39,45 +44,43 @@ type Fqn []string
 //	Name      string
 //	ValueArgs []any // Value argument -> Expression
 //}
-//
-//type NamedArg struct {
-//	Name  string
-//	Value any // Expression
-//}
-//
-//type PropAccess struct {
-//	Object string
-//	Prop   string
-//}
-//
+
+type KtNamedArg struct {
+	Name  string
+	Value any // Expression
+}
+
+type KtPropAccess struct {
+	Object string
+	Prop   string
+}
+
 //type UserType Fqn
-//
-//type Import struct {
-//	fqn *Fqn
-//}
-//
-//type Fqn []string
-//
-//type StringLiteral string
-//type BoolLiteral bool
-//
-//type LambdaLiteral struct {
-//	Statements []any // Statement
-//}
-//
-//type InlineLambdaLiteral struct {
-//	Statements []any // Statement
-//}
-//
-//type PropAssignment struct {
-//	Prop string
-//	Expr any
-//}
-//
+
+type KtImport struct {
+	Fqn *kotlin.Fqn
+}
+
+type KtStringLiteral string
+type KtBoolLiteral bool
+
+type KtLambdaLiteral struct {
+	Statements []any // Statement
+}
+
+type KtInlineLambdaLiteral struct {
+	Statements []any // Statement
+}
+
+type KtPropAssignment struct {
+	Prop string
+	Expr any
+}
+
 //type returnStat struct {
 //	expr any
 //}
-//
+
 //type statementKind int
 //
 //const (
@@ -91,7 +94,7 @@ type Fqn []string
 //}
 //
 //type funcSignature struct {
-//	fqn        *Fqn
+//	Fqn        *Fqn
 //	params     []parameter
 //	returnType *ktType
 //}
@@ -106,7 +109,7 @@ type Fqn []string
 //}
 //
 //type ktClass struct {
-//	fqn          *Fqn
+//	Fqn          *Fqn
 //	constructors []*funcSignature
 //}
 //
