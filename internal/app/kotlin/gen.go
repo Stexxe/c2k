@@ -98,6 +98,12 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 				useSymbol(file, fileCtor)
 				useSymbol(file, channelProvider)
 				useSymbol(file, readChannel)
+
+				contentType := "application/octet-stream"
+				if p.ContentType != "" {
+					contentType = p.ContentType
+				}
+
 				chProvider := CtorInvoke{Type: UserType{channelProvider.Name}, ValueArgs: []any{
 					NamedArg{Name: "size", Value: MethodCall{Receiver: "file", Method: "length"}},
 					InlineLambdaLiteral{Statements: []any{MethodCall{Receiver: "file", Method: "readChannel"}}},
@@ -106,7 +112,7 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 					LambdaLiteral{Statements: []any{
 						FuncCall{Name: "append", ValueArgs: []any{
 							PropAccess{Object: "HttpHeaders", Prop: "ContentType"},
-							"application/octet-stream",
+							contentType,
 						}},
 						FuncCall{Name: "append", ValueArgs: []any{
 							PropAccess{Object: "HttpHeaders", Prop: "ContentDisposition"},
@@ -118,7 +124,7 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 				useSymbol(file, httpHeadersObject)
 				fdStatements = append(fdStatements, FuncCall{Name: "append", ValueArgs: []any{p.Name, chProvider, headers}})
 			case curl.FormPartUnknown:
-				err = errors.New("unrecognized form part type")
+				err = errors.New("form-data-body: unrecognized form part type")
 				return
 			}
 

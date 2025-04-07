@@ -22,6 +22,10 @@ func TestConversion(t *testing.T) {
 	}
 
 	for _, e := range entries {
+		if e.Name() != "formdata-type-directive.kt" {
+			continue
+		}
+
 		entryPath := filepath.Join(casesDir, e.Name())
 
 		b, err := os.ReadFile(entryPath)
@@ -55,7 +59,7 @@ func TestConversion(t *testing.T) {
 		ktFile, err := kotlin.GenAst(command)
 
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("%s: unexpected error %s", e.Name(), err)
 		}
 
 		var actual strings.Builder

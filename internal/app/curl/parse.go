@@ -69,10 +69,11 @@ const (
 )
 
 type FormPart struct {
-	Kind     FormPartKind
-	Name     string
-	Value    string
-	FilePath string
+	Kind        FormPartKind
+	Name        string
+	Value       string
+	FilePath    string
+	ContentType string
 }
 
 func ParseCommand(cmd []string) (command *Command, err error) {
@@ -203,23 +204,44 @@ func isQuote(r rune) bool {
 }
 
 func parseFormPart(str string) (param FormPart) {
-	parts := strings.Split(str, "=")
+	mainParts := strings.Split(str, ";")
 
-	if len(parts) == 2 {
-		param.Name = parts[0]
+	var nameValue string
+	var typeInfo string
 
-		if strings.HasPrefix(parts[1], "@") {
-			param.Kind = FormPartFile
-			param.FilePath = strings.TrimPrefix(parts[1], "@")
-			param.FilePath = strings.TrimLeftFunc(param.FilePath, isQuote)
-			param.FilePath = strings.TrimRightFunc(param.FilePath, isQuote)
+	if len(mainParts) == 2 {
+		nameValue = mainParts[0]
+		typeInfo = mainParts[1]
+	} else if len(mainParts) == 1 {
+		nameValue = mainParts[0]
+	}
+
+	if nameValue != "" {
+		parts := strings.Split(nameValue, "=")
+		if len(parts) == 2 {
+			param.Name = parts[0]
+
+			if strings.HasPrefix(parts[1], "@") {
+				param.Kind = FormPartFile
+				param.FilePath = strings.TrimPrefix(parts[1], "@")
+				param.FilePath = strings.TrimLeftFunc(param.FilePath, isQuote)
+				param.FilePath = strings.TrimRightFunc(param.FilePath, isQuote)
+			} else {
+				param.Kind = FormPartItem
+				param.Value = parts[1]
+
+			}
 		} else {
-			param.Kind = FormPartItem
-			param.Value = parts[1]
-
+			param.Name = parts[0]
 		}
-	} else {
-		param.Name = parts[0]
+	}
+
+	if typeInfo != "" {
+		parts := strings.Split(typeInfo, "=")
+
+		if len(parts) == 2 && strings.TrimSpace(parts[0]) == "type" {
+			param.ContentType = strings.TrimSpace(parts[1])
+		}
 	}
 
 	return
