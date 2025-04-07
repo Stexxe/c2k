@@ -16,7 +16,7 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 	request := command.Request
 
 	for _, sym := range builders {
-		if sym.Name == SimpleId(strings.ToLower(request.Method)) {
+		if sym.Name == strings.ToLower(request.Method) {
 			methodFunc = sym
 			builderFound = true
 			break
@@ -28,31 +28,40 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 	var clientCall MethodCall
 	var requestBuilder *LambdaLiteral = nil
 
+	runBlockingScope := newScope()
+
+	var ctorArgs []any
+
+	if !command.FollowRedirects { // Ktor follows redirects by default
+		ctorArgs = append(ctorArgs, LambdaLiteral{Statements: []any{
+			PropAssignment{Prop: "followRedirects", Expr: command.FollowRedirects},
+		}})
+	}
+
+	client, clientDecl := declareVal(runBlockingScope, "client", CtorInvoke{Type: UserType{httpClient.Name}, ValueArgs: ctorArgs})
 	if builderFound {
-		clientCall = MethodCall{Receiver: "client", Method: methodFunc.Name, ValueArgs: []any{
-			StringLiteral(request.Url),
-		}}
+		clientCall = callMethod(runBlockingScope, client, methodFunc.Name, request.Url)
 	} else {
 		requestBuilder = &LambdaLiteral{Statements: []any{
-			PropAssignment{Prop: "method", Expr: CtorInvoke{Type: UserType{httpMethod.Name}, ValueArgs: []any{StringLiteral(request.Method)}}},
+			PropAssignment{Prop: "method", Expr: CtorInvoke{Type: UserType{httpMethod.Name}, ValueArgs: []any{request.Method}}},
 		}}
 
-		clientCall = MethodCall{Receiver: "client", Method: methodFunc.Name, ValueArgs: []any{
-			StringLiteral(request.Url),
-		}}
+		clientCall = callMethod(runBlockingScope, client, methodFunc.Name, request.Url)
 
 		useSymbol(file, httpMethod)
 	}
 
+	requestScope := newScope()
 	if len(request.Headers) > 0 {
 		if requestBuilder == nil {
 			requestBuilder = &LambdaLiteral{}
 		}
 
 		for _, h := range request.Headers {
-			requestBuilder.Statements = append(requestBuilder.Statements, MethodCall{Receiver: "headers", Method: "append", ValueArgs: []any{
-				StringLiteral(h.Name), StringLiteral(h.Value),
-			}})
+			requestBuilder.Statements = append(
+				requestBuilder.Statements,
+				callPropMethod(requestScope, "headers", "append", h.Name, h.Value),
+			)
 		}
 	}
 
@@ -62,7 +71,7 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 		var appends []any
 
 		for _, p := range b.Params {
-			appends = append(appends, FuncCall{Name: "append", ValueArgs: []any{StringLiteral(p.Name), StringLiteral(p.Value)}})
+			appends = append(appends, FuncCall{Name: "append", ValueArgs: []any{p.Name, p.Value}})
 		}
 
 		requestBuilder.Statements = append(requestBuilder.Statements, FuncCall{Name: setBody.Name, ValueArgs: []any{
@@ -83,9 +92,9 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 		for _, p := range b.Parts {
 			switch p.Kind {
 			case curl.FormPartItem:
-				fdStatements = append(fdStatements, FuncCall{Name: "append", ValueArgs: []any{StringLiteral(p.Name), StringLiteral(p.Value)}})
+				fdStatements = append(fdStatements, FuncCall{Name: "append", ValueArgs: []any{p.Name, p.Value}})
 			case curl.FormPartFile:
-				fdStatements = append(fdStatements, VarDecl{Name: "file", Assignment: CtorInvoke{Type: UserType{fileCtor.Name}, ValueArgs: []any{StringLiteral(p.FilePath)}}})
+				fdStatements = append(fdStatements, VarDecl{Name: "file", Assignment: CtorInvoke{Type: UserType{fileCtor.Name}, ValueArgs: []any{p.FilePath}}})
 				useSymbol(file, fileCtor)
 				useSymbol(file, channelProvider)
 				useSymbol(file, readChannel)
@@ -97,21 +106,17 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 					LambdaLiteral{Statements: []any{
 						FuncCall{Name: "append", ValueArgs: []any{
 							PropAccess{Object: "HttpHeaders", Prop: "ContentType"},
-							StringLiteral("application/octet-stream"),
+							"application/octet-stream",
 						}},
 						FuncCall{Name: "append", ValueArgs: []any{
 							PropAccess{Object: "HttpHeaders", Prop: "ContentDisposition"},
-							StringLiteral(fmt.Sprintf("filename=\"%s\"", path.Base(p.FilePath))),
+							fmt.Sprintf("filename=\"%s\"", path.Base(p.FilePath)),
 						}},
 					}},
 				}}
 				useSymbol(file, headersObject)
 				useSymbol(file, httpHeadersObject)
-				fdStatements = append(fdStatements, FuncCall{Name: "append", ValueArgs: []any{
-					StringLiteral(p.Name),
-					chProvider,
-					headers,
-				}})
+				fdStatements = append(fdStatements, FuncCall{Name: "append", ValueArgs: []any{p.Name, chProvider, headers}})
 			case curl.FormPartUnknown:
 				err = errors.New("unrecognized form part type")
 				return
@@ -136,22 +141,11 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 		clientCall.ValueArgs = append(clientCall.ValueArgs, *requestBuilder)
 	}
 
-	var ctorArgs []any
-
-	if !command.FollowRedirects { // Ktor follows redirects by default
-		ctorArgs = append(ctorArgs, LambdaLiteral{Statements: []any{
-			PropAssignment{Prop: "followRedirects", Expr: BoolLiteral(command.FollowRedirects)},
-		}})
-	}
-
 	file.TopLevels = append(file.TopLevels, FuncDecl{
 		Name: "main",
 		Expr: FuncCall{Name: runBlocking.Name, ValueArgs: []any{
 			LambdaLiteral{Statements: []any{
-				VarDecl{
-					Name:       "client",
-					Assignment: CtorInvoke{Type: UserType{httpClient.Name}, ValueArgs: ctorArgs},
-				},
+				clientDecl,
 				VarDecl{
 					Name:       "response",
 					Assignment: clientCall,

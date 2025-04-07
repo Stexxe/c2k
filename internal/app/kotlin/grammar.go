@@ -6,7 +6,7 @@ type KtFile struct {
 }
 
 type FuncDecl struct {
-	Name SimpleId
+	Name string
 	Body Block
 	Expr any // = expression
 }
@@ -16,7 +16,7 @@ type Block struct {
 }
 
 type VarDecl struct {
-	Name           SimpleId
+	Name           string
 	Mutable        bool
 	TypeAnnotation UserType
 	Assignment     any // Expression
@@ -28,18 +28,18 @@ type CtorInvoke struct {
 }
 
 type MethodCall struct {
-	Receiver  SimpleId
-	Method    SimpleId
+	Receiver  string
+	Method    string
 	ValueArgs []any // Value argument -> Expression
 }
 
 type FuncCall struct {
-	Name      SimpleId
+	Name      string
 	ValueArgs []any // Value argument -> Expression
 }
 
 type NamedArg struct {
-	Name  SimpleId
+	Name  string
 	Value any // Expression
 }
 
@@ -54,11 +54,10 @@ type Import struct {
 	fqn Fqn
 }
 
-type Fqn []SimpleId
-type SimpleId string
+type Fqn []string
 
-type StringLiteral string
-type BoolLiteral bool
+//type StringLiteral string
+//type BoolLiteral bool
 
 type LambdaLiteral struct {
 	Statements []any // Statement
@@ -69,6 +68,6 @@ type InlineLambdaLiteral struct {
 }
 
 type PropAssignment struct {
-	Prop SimpleId
+	Prop string
 	Expr any
 }

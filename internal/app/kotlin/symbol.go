@@ -1,7 +1,7 @@
 package kotlin
 
 type symbol struct {
-	Name    SimpleId
+	Name    string
 	Package *Fqn
 }
 

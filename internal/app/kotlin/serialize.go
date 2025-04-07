@@ -107,7 +107,7 @@ func writeExpr(w io.Writer, expr *any, level int) (err error) {
 		err = writeValueArgs(w, expr.ValueArgs, level)
 	case PropAccess:
 		_, err = fmt.Fprintf(w, "%s.%s", expr.Object, expr.Prop)
-	case StringLiteral:
+	case string:
 		_, err = fmt.Fprint(w, "\"")
 		for _, r := range expr {
 			if r != '"' && r != '\\' {
@@ -118,7 +118,7 @@ func writeExpr(w io.Writer, expr *any, level int) (err error) {
 		}
 
 		_, err = fmt.Fprint(w, "\"")
-	case BoolLiteral:
+	case bool:
 		if expr {
 			_, err = fmt.Fprint(w, "true")
 		} else {
