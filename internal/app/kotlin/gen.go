@@ -2,6 +2,7 @@ package kotlin
 
 import (
 	"c2k/internal/app/curl"
+	"c2k/internal/app/utils"
 	"errors"
 	"fmt"
 	"log"
@@ -42,19 +43,35 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 	}
 
 	client, clientDecl := declareVal(runBlockingScope, "client", CtorInvoke{Type: UserType{simpleName(httpClient)}, ValueArgs: ctorArgs})
-	if builderFound {
-		clientCall = callMethod(runBlockingScope, client, simpleName(methodFunc), request.Url)
-	} else {
+
+	if !builderFound {
 		requestBuilder = &LambdaLiteral{Statements: []any{
 			PropAssignment{Prop: "method", Expr: CtorInvoke{Type: UserType{simpleName(httpMethod)}, ValueArgs: []any{request.Method}}},
 		}}
 
-		clientCall = callMethod(runBlockingScope, client, simpleName(methodFunc), request.Url)
-
 		addImport(imports, httpMethod)
 	}
 
+	requestAddr := request.Url
+	if command.ResolvedAddr != "" {
+		requestAddr = fmt.Sprintf("%s://%s", utils.UrlProto(requestAddr), command.ResolvedAddr)
+	}
+
+	clientCall = callMethod(runBlockingScope, client, simpleName(methodFunc), requestAddr)
+
 	requestScope := newScope()
+
+	if command.ResolvedAddr != "" {
+		if requestBuilder == nil {
+			requestBuilder = &LambdaLiteral{}
+		}
+
+		requestBuilder.Statements = append(
+			requestBuilder.Statements,
+			callPropMethod(requestScope, "headers", "append", "Host", utils.UrlHost(request.Url)),
+		)
+	}
+
 	if len(request.Headers) > 0 {
 		if requestBuilder == nil {
 			requestBuilder = &LambdaLiteral{}

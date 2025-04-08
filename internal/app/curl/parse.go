@@ -7,6 +7,7 @@ import (
 
 type Command struct {
 	FollowRedirects bool
+	ResolvedAddr    string
 	Request         *Request
 }
 
@@ -30,6 +31,7 @@ const (
 	DataOption
 	LocationOption
 	FormOption
+	ResolveOption
 )
 
 var oneArgOptions = map[string]curlOption{
@@ -37,6 +39,7 @@ var oneArgOptions = map[string]curlOption{
 	"-X": MethodOption, "--request": MethodOption,
 	"-d": DataOption, "--data": DataOption,
 	"-F": FormOption, "--form": FormOption,
+	"--resolve": ResolveOption,
 }
 
 var flagOptions = map[string]curlOption{
@@ -169,6 +172,21 @@ func ParseCommand(cmd []string) (command *Command, err error) {
 					if request.Method == "" {
 						request.Method = "POST"
 					}
+				case ResolveOption:
+					parts := strings.Split(inst.value[0], ":")
+					host := parts[0]
+					port := parts[1]
+					ip := parts[2]
+
+					plainHostMatches := strings.HasPrefix(request.Url, "http://") && port == "80" &&
+						(strings.TrimPrefix(request.Url, "http://") == host || host == "*")
+
+					secureHostMatches := strings.HasPrefix(request.Url, "https://") && port == "443" &&
+						(strings.TrimPrefix(request.Url, "https://") == host || host == "*")
+
+					if plainHostMatches || secureHostMatches {
+						command.ResolvedAddr = ip
+					}
 				case UnknownOption:
 					err = fmt.Errorf("curl: unknown option")
 				}
@@ -177,7 +195,6 @@ func ParseCommand(cmd []string) (command *Command, err error) {
 			if request.Method == "" {
 				request.Method = "GET"
 			}
-
 		} else {
 			err = fmt.Errorf("curl: expected URL, got none")
 		}
