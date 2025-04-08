@@ -99,7 +99,6 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 			case curl.FormPartFile:
 				fileName := path.Base(p.FilePath)
 				varName := genFormVar(fileName)
-				//varName := strings.TrimSuffix(fileName, path.Ext(fileName))
 				fdStatements = append(fdStatements, VarDecl{Name: varName, Assignment: CtorInvoke{Type: UserType{simpleName(fileCtor)}, ValueArgs: []any{p.FilePath}}})
 
 				addImport(imports, fileCtor)
@@ -123,7 +122,7 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 						}},
 						FuncCall{Name: "append", ValueArgs: []any{
 							PropAccess{Object: "HttpHeaders", Prop: "ContentDisposition"},
-							fmt.Sprintf("filename=\"%s\"", fileName),
+							fmt.Sprintf("filename=\"${%s.name}\"", varName),
 						}},
 					}},
 				}}

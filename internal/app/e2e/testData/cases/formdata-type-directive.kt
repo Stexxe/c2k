@@ -21,7 +21,7 @@ fun main() = runBlocking {
             val index = File("index.html")
             append("web", ChannelProvider(size = index.length()) { index.readChannel() }, Headers.build {
                 append(HttpHeaders.ContentType, "text/html")
-                append(HttpHeaders.ContentDisposition, "filename=\"index.html\"")
+                append(HttpHeaders.ContentDisposition, "filename=\"${index.name}\"")
             })
         }))
     }

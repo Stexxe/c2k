@@ -21,7 +21,7 @@ fun main() = runBlocking {
             val file = File("/path/to/file.txt")
             append("file", ChannelProvider(size = file.length()) { file.readChannel() }, Headers.build {
                 append(HttpHeaders.ContentType, "application/octet-stream")
-                append(HttpHeaders.ContentDisposition, "filename=\"file.txt\"")
+                append(HttpHeaders.ContentDisposition, "filename=\"${file.name}\"")
             })
         }))
     }
