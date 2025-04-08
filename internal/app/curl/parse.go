@@ -229,7 +229,6 @@ func parseFormPart(str string) (param FormPart) {
 			} else {
 				param.Kind = FormPartItem
 				param.Value = parts[1]
-
 			}
 		} else {
 			param.Name = parts[0]

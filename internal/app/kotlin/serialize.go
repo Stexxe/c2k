@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 )
 
 var defaultIndent = "    "
@@ -108,16 +109,11 @@ func writeExpr(w io.Writer, expr *any, level int) (err error) {
 	case PropAccess:
 		_, err = fmt.Fprintf(w, "%s.%s", expr.Object, expr.Prop)
 	case string:
-		_, err = fmt.Fprint(w, "\"")
-		for _, r := range expr {
-			if r != '"' && r != '\\' {
-				_, err = fmt.Fprintf(w, "%c", r)
-			} else {
-				_, err = fmt.Fprintf(w, "\\%c", r)
-			}
+		if strings.Contains(expr, "\n") {
+			err = writeMultilineStr(w, expr, level)
+		} else {
+			err = writeStr(w, expr)
 		}
-
-		_, err = fmt.Fprint(w, "\"")
 	case bool:
 		if expr {
 			_, err = fmt.Fprint(w, "true")
@@ -140,6 +136,36 @@ func writeExpr(w io.Writer, expr *any, level int) (err error) {
 		_, err = fmt.Fprint(w, " }")
 	}
 
+	return
+}
+
+func writeMultilineStr(w io.Writer, str string, level int) (err error) {
+	lines := strings.Split(str, "\n")
+
+	_, err = fmt.Fprintf(w, "\"\"\"%s", lines[0])
+
+	for _, l := range lines[1 : len(lines)-1] {
+		_, err = fmt.Fprint(w, "\n")
+		err = writeIdent(w, level)
+		_, err = fmt.Fprint(w, l)
+	}
+	_, err = fmt.Fprint(w, "\n")
+	err = writeIdent(w, level)
+	_, err = fmt.Fprintf(w, "%s\"\"\".trimIndent()", lines[len(lines)-1])
+	return
+}
+
+func writeStr(w io.Writer, str string) (err error) {
+	_, err = fmt.Fprint(w, "\"")
+	for _, r := range str {
+		if r != '"' && r != '\\' {
+			_, err = fmt.Fprintf(w, "%c", r)
+		} else {
+			_, err = fmt.Fprintf(w, "\\%c", r)
+		}
+	}
+
+	_, err = fmt.Fprint(w, "\"")
 	return
 }
 

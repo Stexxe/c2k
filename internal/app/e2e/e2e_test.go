@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"unicode/utf8"
 )
 
 func TestConversion(t *testing.T) {
@@ -22,9 +21,6 @@ func TestConversion(t *testing.T) {
 	}
 
 	for _, e := range entries {
-		if e.Name() != "formdata-numeric-file.kt" {
-			continue
-		}
 		entryPath := filepath.Join(casesDir, e.Name())
 
 		b, err := os.ReadFile(entryPath)
@@ -33,21 +29,37 @@ func TestConversion(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if b[0] == '/' && b[1] == '/' {
+		lines := strings.Split(string(b), "\n")
+		var curlCommand strings.Builder
 
-		} else {
+		sep := ""
+		var expCode string
+
+		for i, l := range lines {
+			runes := []rune(l)
+
+			if len(runes) > 1 && runes[0] == '/' && runes[1] == '/' {
+				curlCommand.WriteString(sep)
+
+				startOffset := 2
+				if i == 0 {
+					startOffset = 3
+				}
+
+				curlCommand.WriteString(string(runes[startOffset:]))
+
+				sep = "\n"
+			} else {
+				expCode = strings.Join(lines[i:], "\n")
+				break
+			}
+		}
+
+		if curlCommand.Len() == 0 {
 			t.Fatalf("Expected comment with the curl command on the first line, got %s ...", string(b[:16]))
 		}
 
-		i := 2
-		for ; i < len(b) && b[i] == ' '; i++ {
-		}
-		start := i
-		for ; i < len(b) && b[i] != '\n'; i++ {
-		}
-
-		expContent := b[i+1:]
-		cmdParsed := parseCurlCommand(b[start:i])
+		cmdParsed := parseCurlCommand(curlCommand.String())
 
 		command, err := curl.ParseCommand(cmdParsed)
 
@@ -70,7 +82,7 @@ func TestConversion(t *testing.T) {
 
 		diff := utils.Diff(
 			fmt.Sprintf("%s-expected", e.Name()),
-			expContent,
+			[]byte(expCode),
 			fmt.Sprintf("%s-actual", e.Name()),
 			[]byte(actual.String()),
 		)
@@ -81,14 +93,15 @@ func TestConversion(t *testing.T) {
 	}
 }
 
-func parseCurlCommand(cmd []byte) (args []string) {
+func parseCurlCommand(cmd string) (args []string) {
 	var argBuilder strings.Builder
 	inQuote := false
 	var quoteSym rune
 
-	for i := 0; i < len(cmd); {
-		r, sz := utf8.DecodeRune(cmd[i:])
+	runes := []rune(cmd)
 
+	for i := 0; i < len(runes); i++ {
+		r := runes[i]
 		if inQuote {
 			if r == quoteSym {
 				inQuote = false
@@ -107,11 +120,11 @@ func parseCurlCommand(cmd []byte) (args []string) {
 				inQuote = true
 				quoteSym = r
 			} else if r == '\\' {
-				nextRune, nextSize := utf8.DecodeRune(cmd[i+sz:])
+				nextRune := runes[i+1]
 
 				if nextRune == '\'' || nextRune == '"' || nextRune == '\\' {
 					argBuilder.WriteRune(nextRune)
-					i += nextSize
+					i += 1
 				} else {
 					argBuilder.WriteRune(r)
 				}
@@ -119,8 +132,6 @@ func parseCurlCommand(cmd []byte) (args []string) {
 				argBuilder.WriteRune(r)
 			}
 		}
-
-		i += sz
 	}
 
 	if argBuilder.Len() > 0 {
