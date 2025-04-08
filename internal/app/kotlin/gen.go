@@ -4,9 +4,11 @@ import (
 	"c2k/internal/app/curl"
 	"errors"
 	"fmt"
+	"log"
 	"path"
 	"slices"
 	"strings"
+	"unicode"
 )
 
 func GenAst(command *curl.Command) (file *KtFile, err error) {
@@ -15,15 +17,16 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 	methodFunc := requestRequest
 	request := command.Request
 
-	for _, sym := range builders {
-		if sym.Name == strings.ToLower(request.Method) {
-			methodFunc = sym
+	for _, fqn := range builders {
+		if name := simpleName(fqn); name == strings.ToLower(request.Method) {
+			methodFunc = fqn
 			builderFound = true
 			break
 		}
 	}
 
-	useSymbol(file, methodFunc)
+	imports := make(map[*Fqn]struct{})
+	addImport(imports, methodFunc)
 
 	var clientCall MethodCall
 	var requestBuilder *LambdaLiteral = nil
@@ -38,17 +41,17 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 		}})
 	}
 
-	client, clientDecl := declareVal(runBlockingScope, "client", CtorInvoke{Type: UserType{httpClient.Name}, ValueArgs: ctorArgs})
+	client, clientDecl := declareVal(runBlockingScope, "client", CtorInvoke{Type: UserType{simpleName(httpClient)}, ValueArgs: ctorArgs})
 	if builderFound {
-		clientCall = callMethod(runBlockingScope, client, methodFunc.Name, request.Url)
+		clientCall = callMethod(runBlockingScope, client, simpleName(methodFunc), request.Url)
 	} else {
 		requestBuilder = &LambdaLiteral{Statements: []any{
-			PropAssignment{Prop: "method", Expr: CtorInvoke{Type: UserType{httpMethod.Name}, ValueArgs: []any{request.Method}}},
+			PropAssignment{Prop: "method", Expr: CtorInvoke{Type: UserType{simpleName(httpMethod)}, ValueArgs: []any{request.Method}}},
 		}}
 
-		clientCall = callMethod(runBlockingScope, client, methodFunc.Name, request.Url)
+		clientCall = callMethod(runBlockingScope, client, simpleName(methodFunc), request.Url)
 
-		useSymbol(file, httpMethod)
+		addImport(imports, httpMethod)
 	}
 
 	requestScope := newScope()
@@ -74,17 +77,17 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 			appends = append(appends, FuncCall{Name: "append", ValueArgs: []any{p.Name, p.Value}})
 		}
 
-		requestBuilder.Statements = append(requestBuilder.Statements, FuncCall{Name: setBody.Name, ValueArgs: []any{
-			CtorInvoke{Type: UserType{formDataContent.Name}, ValueArgs: []any{
-				FuncCall{Name: parameters.Name, ValueArgs: []any{
+		requestBuilder.Statements = append(requestBuilder.Statements, FuncCall{Name: simpleName(setBody), ValueArgs: []any{
+			CtorInvoke{Type: UserType{simpleName(formDataContent)}, ValueArgs: []any{
+				FuncCall{Name: simpleName(parameters), ValueArgs: []any{
 					LambdaLiteral{Statements: appends},
 				}},
 			}},
 		}})
 
-		useSymbol(file, formDataContent)
-		useSymbol(file, parameters)
-		useSymbol(file, setBody)
+		addImport(imports, formDataContent)
+		addImport(imports, parameters)
+		addImport(imports, setBody)
 	case *curl.FormDataBody:
 		requestBuilder = &LambdaLiteral{}
 		var fdStatements []any
@@ -94,19 +97,23 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 			case curl.FormPartItem:
 				fdStatements = append(fdStatements, FuncCall{Name: "append", ValueArgs: []any{p.Name, p.Value}})
 			case curl.FormPartFile:
-				fdStatements = append(fdStatements, VarDecl{Name: "file", Assignment: CtorInvoke{Type: UserType{fileCtor.Name}, ValueArgs: []any{p.FilePath}}})
-				useSymbol(file, fileCtor)
-				useSymbol(file, channelProvider)
-				useSymbol(file, readChannel)
+				fileName := path.Base(p.FilePath)
+				varName := genFormVar(fileName)
+				//varName := strings.TrimSuffix(fileName, path.Ext(fileName))
+				fdStatements = append(fdStatements, VarDecl{Name: varName, Assignment: CtorInvoke{Type: UserType{simpleName(fileCtor)}, ValueArgs: []any{p.FilePath}}})
+
+				addImport(imports, fileCtor)
+				addImport(imports, channelProvider)
+				addImport(imports, readChannel)
 
 				contentType := "application/octet-stream"
 				if p.ContentType != "" {
 					contentType = p.ContentType
 				}
 
-				chProvider := CtorInvoke{Type: UserType{channelProvider.Name}, ValueArgs: []any{
-					NamedArg{Name: "size", Value: MethodCall{Receiver: "file", Method: "length"}},
-					InlineLambdaLiteral{Statements: []any{MethodCall{Receiver: "file", Method: "readChannel"}}},
+				chProvider := CtorInvoke{Type: UserType{simpleName(channelProvider)}, ValueArgs: []any{
+					NamedArg{Name: "size", Value: MethodCall{Receiver: varName, Method: "length"}},
+					InlineLambdaLiteral{Statements: []any{MethodCall{Receiver: varName, Method: "readChannel"}}},
 				}}
 				headers := MethodCall{Receiver: "Headers", Method: "build", ValueArgs: []any{
 					LambdaLiteral{Statements: []any{
@@ -116,31 +123,31 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 						}},
 						FuncCall{Name: "append", ValueArgs: []any{
 							PropAccess{Object: "HttpHeaders", Prop: "ContentDisposition"},
-							fmt.Sprintf("filename=\"%s\"", path.Base(p.FilePath)),
+							fmt.Sprintf("filename=\"%s\"", fileName),
 						}},
 					}},
 				}}
-				useSymbol(file, headersObject)
-				useSymbol(file, httpHeadersObject)
+
+				addImport(imports, headersObject)
+				addImport(imports, httpHeadersObject)
 				fdStatements = append(fdStatements, FuncCall{Name: "append", ValueArgs: []any{p.Name, chProvider, headers}})
 			case curl.FormPartUnknown:
 				err = errors.New("form-data-body: unrecognized form part type")
 				return
 			}
-
 		}
 
-		requestBuilder.Statements = append(requestBuilder.Statements, FuncCall{Name: setBody.Name, ValueArgs: []any{
-			CtorInvoke{Type: UserType{multipartContent.Name}, ValueArgs: []any{
-				FuncCall{Name: formData.Name, ValueArgs: []any{
+		requestBuilder.Statements = append(requestBuilder.Statements, FuncCall{Name: simpleName(setBody), ValueArgs: []any{
+			CtorInvoke{Type: UserType{simpleName(multipartContent)}, ValueArgs: []any{
+				FuncCall{Name: simpleName(formData), ValueArgs: []any{
 					LambdaLiteral{Statements: fdStatements},
 				}},
 			}},
 		}})
 
-		useSymbol(file, multipartContent)
-		useSymbol(file, formData)
-		useSymbol(file, setBody)
+		addImport(imports, multipartContent)
+		addImport(imports, formData)
+		addImport(imports, setBody)
 	}
 
 	if requestBuilder != nil {
@@ -149,7 +156,7 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 
 	file.TopLevels = append(file.TopLevels, FuncDecl{
 		Name: "main",
-		Expr: FuncCall{Name: runBlocking.Name, ValueArgs: []any{
+		Expr: FuncCall{Name: simpleName(runBlocking), ValueArgs: []any{
 			LambdaLiteral{Statements: []any{
 				clientDecl,
 				VarDecl{
@@ -159,20 +166,24 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 				FuncCall{
 					Name: "print",
 					ValueArgs: []any{
-						MethodCall{Receiver: "response", Method: bodyAsText.Name},
+						MethodCall{Receiver: "response", Method: simpleName(bodyAsText)},
 					},
 				},
 			}},
 		}},
 	})
 
-	useSymbol(file, runBlocking)
-	useSymbol(file, httpClient)
-	useSymbol(file, bodyAsText)
+	addImport(imports, runBlocking)
+	addImport(imports, httpClient)
+	addImport(imports, bodyAsText)
+
+	for fqn := range imports {
+		file.ImportList = append(file.ImportList, Import{fqn: *fqn})
+	}
 
 	slices.SortFunc(file.ImportList, func(a, b Import) int {
 		for i, p := range a.fqn {
-			if ord := strings.Compare(string(p), string(b.fqn[i])); ord != 0 {
+			if ord := strings.Compare(p, b.fqn[i]); ord != 0 {
 				return ord
 			}
 		}
@@ -183,8 +194,38 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 	return
 }
 
-func useSymbol(file *KtFile, symbol *symbol) {
-	fqn := append(Fqn{}, *symbol.Package...)
-	fqn = append(fqn, symbol.Name)
-	file.ImportList = append(file.ImportList, Import{fqn: fqn})
+func addImport(imports map[*Fqn]struct{}, fqn *Fqn) {
+	imports[fqn] = struct{}{}
+}
+
+func simpleName(fqn *Fqn) (name string) {
+	if len(*fqn) != 0 {
+		name = (*fqn)[len(*fqn)-1]
+	} else {
+		log.Panicf("cannot get name from empty fqn")
+	}
+
+	return
+}
+
+func genFormVar(filename string) string {
+	name := strings.TrimSuffix(filename, path.Ext(filename))
+
+	if name == "" {
+		return "file"
+	} else {
+		var numPrefix strings.Builder
+		for _, c := range name {
+			if unicode.IsNumber(c) {
+				numPrefix.WriteRune(c)
+			}
+			break
+		}
+
+		if numPrefix.Len() > 0 {
+			return "file" + numPrefix.String()
+		}
+
+		return name
+	}
 }

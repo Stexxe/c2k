@@ -22,10 +22,6 @@ func TestConversion(t *testing.T) {
 	}
 
 	for _, e := range entries {
-		if e.Name() != "formdata-type-directive.kt" {
-			continue
-		}
-
 		entryPath := filepath.Join(casesDir, e.Name())
 
 		b, err := os.ReadFile(entryPath)

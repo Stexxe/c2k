@@ -18,8 +18,8 @@ fun main() = runBlocking {
     }
     val response = client.post("https://httpbin.org/post") {
         setBody(MultiPartFormDataContent(formData {
-            val file = File("/data/1.XML")
-            append("upload", ChannelProvider(size = file.length()) { file.readChannel() }, Headers.build {
+            val file1 = File("/data/1.XML")
+            append("upload", ChannelProvider(size = file1.length()) { file1.readChannel() }, Headers.build {
                 append(HttpHeaders.ContentType, "application/octet-stream")
                 append(HttpHeaders.ContentDisposition, "filename=\"1.XML\"")
             })
