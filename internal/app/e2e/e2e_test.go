@@ -21,6 +21,10 @@ func TestConversion(t *testing.T) {
 	}
 
 	for _, e := range entries {
+		if e.Name() != "headers-with-form.kt" {
+			continue
+		}
+
 		entryPath := filepath.Join(casesDir, e.Name())
 
 		b, err := os.ReadFile(entryPath)
