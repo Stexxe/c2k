@@ -217,8 +217,9 @@ func genFormVar(filename string) string {
 		for _, c := range name {
 			if unicode.IsNumber(c) {
 				numPrefix.WriteRune(c)
+			} else {
+				break
 			}
-			break
 		}
 
 		if numPrefix.Len() > 0 {
