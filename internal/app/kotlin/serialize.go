@@ -59,7 +59,11 @@ func writeStatements(w io.Writer, statements []any, level int) (err error) {
 	for _, st := range statements {
 		_, err = fmt.Fprint(w, sep)
 		sep = "\n"
-		err = writeIdent(w, level)
+
+		if _, ok := st.(EmptyStatement); !ok {
+			err = writeIdent(w, level)
+		}
+
 		err = writeStatement(w, &st, level)
 	}
 
@@ -89,6 +93,8 @@ func writeStatement(w io.Writer, st *any, level int) (err error) {
 	case PropAssignment:
 		_, err = fmt.Fprintf(w, "%s = ", st.Prop)
 		err = writeExpr(w, &st.Expr, level)
+	case EmptyStatement:
+		// Do nothing
 	default:
 		err = writeExpr(w, &st, level)
 	}

@@ -66,6 +66,10 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 				callPropMethod(requestScope, "headers", "append", h.Name, h.Value),
 			)
 		}
+
+		if request.Body != nil {
+			requestBuilder.Statements = append(requestBuilder.Statements, EmptyStatement{})
+		}
 	}
 
 	switch b := request.Body.(type) {
@@ -96,7 +100,7 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 		}
 		var fdStatements []any
 
-		for _, p := range b.Parts {
+		for i, p := range b.Parts {
 			switch p.Kind {
 			case curl.FormPartItem:
 				fdStatements = append(fdStatements, FuncCall{Name: "append", ValueArgs: []any{p.Name, p.Value}})
@@ -134,6 +138,10 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 				addImport(imports, headersObject)
 				addImport(imports, httpHeadersObject)
 				fdStatements = append(fdStatements, FuncCall{Name: "append", ValueArgs: []any{p.Name, chProvider, headers}})
+
+				if i != len(b.Parts)-1 {
+					fdStatements = append(fdStatements, EmptyStatement{})
+				}
 			case curl.FormPartUnknown:
 				err = errors.New("form-data-body: unrecognized form part type")
 				return

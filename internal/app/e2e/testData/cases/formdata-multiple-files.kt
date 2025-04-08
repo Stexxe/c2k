@@ -23,6 +23,7 @@ fun main() = runBlocking {
                 append(HttpHeaders.ContentType, "application/octet-stream")
                 append(HttpHeaders.ContentDisposition, "filename=\"${file.name}\"")
             })
+
             val index = File("index.html")
             append("web", ChannelProvider(size = index.length()) { index.readChannel() }, Headers.build {
                 append(HttpHeaders.ContentType, "application/octet-stream")

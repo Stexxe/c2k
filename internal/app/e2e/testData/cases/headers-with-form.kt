@@ -13,6 +13,7 @@ fun main() = runBlocking {
     }
     val response = client.post("https://httpbin.org/post") {
         headers.append("accept", "application/json")
+
         setBody(MultiPartFormDataContent(formData {
             append("name", "value")
         }))

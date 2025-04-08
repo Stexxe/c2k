@@ -56,8 +56,7 @@ type Import struct {
 
 type Fqn []string
 
-//type StringLiteral string
-//type BoolLiteral bool
+type EmptyStatement struct{}
 
 type LambdaLiteral struct {
 	Statements []any // Statement
