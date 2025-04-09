@@ -148,31 +148,54 @@ func ParseCommand(cmd []string) (command *Command, err error) {
 				}
 			}
 
+			var userContentType string
+			var contentTypeDefined bool
+			for _, inst := range options {
+				if inst.option == HeaderOption {
+					header := parseHeader(inst.value[0])
+
+					if strings.ToLower(header.Name) == "content-type" {
+						userContentType = header.Value
+						contentTypeDefined = true
+					}
+
+					request.Headers = append(request.Headers, header)
+				}
+			}
+
 			var formBody *FormDataBody
 			var urlEncodedBody *UrlEncodedBody
 			for _, inst := range options {
 				switch inst.option {
 				case HeaderOption:
-					request.Headers = append(request.Headers, parseHeader(inst.value[0]))
+					// Already parsed
 				case MethodOption:
 					request.Method = inst.value[0]
 				case DataOption:
-					if urlEncodedBody == nil {
-						urlEncodedBody = &UrlEncodedBody{}
-						request.Body = urlEncodedBody
-					}
+					if contentTypeDefined && !strings.HasPrefix(userContentType, "application/x-www-form-urlencoded") {
+						request.Body = inst.value[0]
+					} else {
+						if urlEncodedBody == nil {
+							urlEncodedBody = &UrlEncodedBody{}
+							request.Body = urlEncodedBody
+						}
 
-					urlEncodedBody.Params = append(urlEncodedBody.Params, parseData(inst.value[0])...)
+						urlEncodedBody.Params = append(urlEncodedBody.Params, parseData(inst.value[0])...)
+					}
 
 					if request.Method == "" {
 						request.Method = "POST"
 					}
 				case RawDataOption:
-					if urlEncodedBody == nil {
-						urlEncodedBody = &UrlEncodedBody{}
-						request.Body = urlEncodedBody
+					if contentTypeDefined && !strings.HasPrefix(userContentType, "application/x-www-form-urlencoded") {
+						request.Body = inst.value[0]
+					} else {
+						if urlEncodedBody == nil {
+							urlEncodedBody = &UrlEncodedBody{}
+							request.Body = urlEncodedBody
+						}
+						urlEncodedBody.Params = append(urlEncodedBody.Params, parseRawData(inst.value[0])...)
 					}
-					urlEncodedBody.Params = append(urlEncodedBody.Params, parseRawData(inst.value[0])...)
 
 					if request.Method == "" {
 						request.Method = "POST"

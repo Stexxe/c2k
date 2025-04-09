@@ -89,7 +89,17 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 		}
 	}
 
+	if request.Body != nil {
+		addImport(imports, setBody)
+	}
+
 	switch b := request.Body.(type) {
+	case string:
+		if requestBuilder == nil {
+			requestBuilder = &LambdaLiteral{}
+		}
+
+		requestBuilder.Statements = append(requestBuilder.Statements, FuncCall{Name: "setBody", ValueArgs: []any{b}})
 	case *curl.UrlEncodedBody:
 		if requestBuilder == nil {
 			requestBuilder = &LambdaLiteral{}
@@ -132,7 +142,6 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 
 		addImport(imports, formDataContent)
 		addImport(imports, parameters)
-		addImport(imports, setBody)
 	case *curl.FormDataBody:
 		if requestBuilder == nil {
 			requestBuilder = &LambdaLiteral{}
@@ -197,7 +206,6 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 
 		addImport(imports, multipartContent)
 		addImport(imports, formData)
-		addImport(imports, setBody)
 	}
 
 	if requestBuilder != nil {
