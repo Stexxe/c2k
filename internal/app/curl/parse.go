@@ -6,9 +6,10 @@ import (
 )
 
 type Command struct {
-	FollowRedirects bool
-	ResolvedAddr    string
-	Request         *Request
+	FollowRedirects      bool
+	ResolvedAddr         string
+	PrintResponseHeaders bool
+	Request              *Request
 }
 
 type Request struct {
@@ -34,6 +35,7 @@ const (
 	LocationOption
 	FormOption
 	ResolveOption
+	IncludeOption
 )
 
 var oneArgOptions = map[string]curlOption{
@@ -48,6 +50,7 @@ var oneArgOptions = map[string]curlOption{
 
 var flagOptions = map[string]curlOption{
 	"-L": LocationOption, "--location": LocationOption,
+	"-i": IncludeOption, "--include": IncludeOption,
 }
 
 type curlOptionInstance struct {
@@ -242,6 +245,8 @@ func ParseCommand(cmd []string) (command *Command, err error) {
 					if plainHostMatches || secureHostMatches {
 						command.ResolvedAddr = ip
 					}
+				case IncludeOption:
+					command.PrintResponseHeaders = true
 				case UnknownOption:
 					err = fmt.Errorf("curl: unknown option")
 				}

@@ -220,22 +220,51 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 		clientCall.ValueArgs = append(clientCall.ValueArgs, *requestBuilder)
 	}
 
+	var mainStatements []any
+
+	mainStatements = append(mainStatements, clientDecl)
+	mainStatements = append(mainStatements, VarDecl{
+		Name:       "response",
+		Assignment: clientCall,
+	})
+
+	var outputStatements []any
+
+	if command.PrintResponseHeaders {
+		outputStatements = append(outputStatements, EmptyStatement{})
+		outputStatements = append(
+			outputStatements,
+			FuncCall{Name: "println", ValueArgs: []any{fmt.Sprintf("%s %s", interp("response.version"), interp("response.status.value"))}},
+		)
+
+		outputStatements = append(outputStatements, EmptyStatement{})
+		headersLoop := ForInLoop{Bind: PairDestruct{"name", "values"}, Expr: MethodCall{Receiver: Id("response.headers"), Method: "entries"}, Statements: []any{
+			ForInLoop{Bind: "v", Expr: Id("values"), Statements: []any{
+				FuncCall{Name: "println", ValueArgs: []any{fmt.Sprintf("%s: %s", interp("name"), interp("v"))}},
+			}},
+		}}
+
+		outputStatements = append(outputStatements, headersLoop)
+
+		outputStatements = append(outputStatements, EmptyStatement{})
+		outputStatements = append(outputStatements, FuncCall{Name: "println"})
+
+		outputStatements = append(outputStatements, EmptyStatement{})
+	}
+
+	outputStatements = append(outputStatements, FuncCall{
+		Name: "print",
+		ValueArgs: []any{
+			MethodCall{Receiver: "response", Method: simpleName(bodyAsText)},
+		},
+	})
+
+	mainStatements = append(mainStatements, outputStatements...)
+
 	file.TopLevels = append(file.TopLevels, FuncDecl{
 		Name: "main",
 		Expr: FuncCall{Name: simpleName(runBlocking), ValueArgs: []any{
-			LambdaLiteral{Statements: []any{
-				clientDecl,
-				VarDecl{
-					Name:       "response",
-					Assignment: clientCall,
-				},
-				FuncCall{
-					Name: "print",
-					ValueArgs: []any{
-						MethodCall{Receiver: "response", Method: simpleName(bodyAsText)},
-					},
-				},
-			}},
+			LambdaLiteral{Statements: mainStatements},
 		}},
 	})
 
@@ -268,6 +297,14 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 	})
 
 	return
+}
+
+func interp(s string) string {
+	if strings.Contains(s, "(") || strings.Contains(s, ".") {
+		return fmt.Sprintf("${%s}", s)
+	}
+
+	return "$" + s
 }
 
 func addImport(imports map[*Fqn]struct{}, fqn *Fqn) {
