@@ -109,6 +109,14 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 		for _, p := range b.Params {
 			if p.FilePath == "" {
 				statements = append(statements, FuncCall{Name: "append", ValueArgs: []any{p.Name, p.Value}})
+			} else if p.Name != "" {
+				addImport(imports, readText)
+				addImport(imports, fileCtor)
+
+				statements = append(
+					statements,
+					FuncCall{Name: "append", ValueArgs: []any{p.Name, MethodCall{Receiver: callCtor(fileCtor, p.FilePath), Method: "readText"}}},
+				)
 			} else {
 				varName := genFormVar(path.Base(p.FilePath)) + "Params"
 				addImport(imports, fileCtor)

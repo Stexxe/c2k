@@ -29,6 +29,7 @@ const (
 	HeaderOption
 	MethodOption
 	DataOption
+	DataUrlEncodeOption
 	RawDataOption
 	LocationOption
 	FormOption
@@ -39,8 +40,9 @@ var oneArgOptions = map[string]curlOption{
 	"-H": HeaderOption, "--header": HeaderOption,
 	"-X": MethodOption, "--request": MethodOption,
 	"-d": DataOption, "--data": DataOption,
-	"--data-raw": RawDataOption,
-	"-F":         FormOption, "--form": FormOption,
+	"--data-raw":       RawDataOption,
+	"--data-urlencode": DataUrlEncodeOption,
+	"-F":               FormOption, "--form": FormOption,
 	"--resolve": ResolveOption,
 }
 
@@ -87,6 +89,7 @@ func ParseCommand(cmd []string) (command *Command, err error) {
 	request := &Request{}
 	command = &Command{Request: request}
 	var freeStandingArgs []string
+	var unexpectedOptions []string
 
 	if len(cmd) > 0 && cmd[0] == "curl" {
 		if len(cmd) > 1 {
@@ -103,8 +106,8 @@ func ParseCommand(cmd []string) (command *Command, err error) {
 							options = append(options, curlOptionInstance{option: opt})
 							i += 1
 						} else {
-							err = fmt.Errorf("parse curl: unexpected option %s", arg)
-							i += len(args) - i
+							unexpectedOptions = append(unexpectedOptions, arg)
+							i++
 						}
 					} else {
 						var opt curlOption
@@ -146,6 +149,11 @@ func ParseCommand(cmd []string) (command *Command, err error) {
 				}
 			}
 
+			if len(unexpectedOptions) > 0 {
+				err = fmt.Errorf("parse curl: unexpected options: %s", strings.Join(unexpectedOptions, " "))
+				return
+			}
+
 			if len(freeStandingArgs) == 0 {
 				err = fmt.Errorf("parse curl: expected URL")
 			} else if len(freeStandingArgs) == 1 {
@@ -177,8 +185,8 @@ func ParseCommand(cmd []string) (command *Command, err error) {
 					// Already parsed
 				case MethodOption:
 					request.Method = inst.value[0]
-				case DataOption:
-					if contentTypeDefined && !strings.HasPrefix(userContentType, "application/x-www-form-urlencoded") {
+				case DataOption, DataUrlEncodeOption:
+					if inst.option != DataUrlEncodeOption && contentTypeDefined && !strings.HasPrefix(userContentType, "application/x-www-form-urlencoded") {
 						request.Body = inst.value[0]
 					} else {
 						if urlEncodedBody == nil {
@@ -311,9 +319,17 @@ func parseFormPart(str string) (param FormPart) {
 }
 
 func parseData(str string) (params []FormParam) {
-	if strings.HasPrefix(str, "@") {
+	if strings.Contains(str, "@") {
+		parts := strings.Split(str, "=")
+
 		param := FormParam{}
-		param.FilePath = strings.TrimPrefix(str, "@")
+		if len(parts) == 2 {
+			param.Name = parts[0]
+			param.FilePath = strings.TrimPrefix(parts[1], "@")
+		} else {
+			param.FilePath = strings.TrimPrefix(str, "@")
+		}
+
 		params = append(params, param)
 	} else {
 		params = parseRawData(str)
@@ -328,8 +344,12 @@ func parseRawData(str string) (params []FormParam) {
 		parts := strings.Split(kv, "=")
 
 		if len(parts) == 2 {
-			param.Name = parts[0]
-			param.Value = parts[1]
+			if parts[0] == "" {
+				param.Name = parts[1]
+			} else {
+				param.Name = parts[0]
+				param.Value = parts[1]
+			}
 		} else {
 			param.Name = parts[0]
 		}
