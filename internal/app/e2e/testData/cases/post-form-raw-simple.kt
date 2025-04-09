@@ -1,4 +1,4 @@
-// curl --data 'hello' https://httpbin.org/post
+// curl --data-raw '@he@llo@' https://httpbin.org/post
 import io.ktor.client.HttpClient
 import io.ktor.client.request.forms.FormDataContent
 import io.ktor.client.request.post
@@ -13,7 +13,7 @@ fun main() = runBlocking {
     }
     val response = client.post("https://httpbin.org/post") {
         setBody(FormDataContent(parameters {
-            append("hello", "")
+            append("@he@llo@", "")
         }))
     }
     print(response.bodyAsText())

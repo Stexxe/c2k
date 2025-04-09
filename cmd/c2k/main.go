@@ -27,6 +27,7 @@ func main() {
 	}
 
 	err = kotlin.Serialize(os.Stdout, ktFile)
+	fmt.Println()
 
 	if err != nil {
 		log.Fatal(err)

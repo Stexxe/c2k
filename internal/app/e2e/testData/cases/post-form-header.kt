@@ -1,4 +1,4 @@
-// curl --data 'hello' https://httpbin.org/post
+// curl --data 'hello' -H 'Custom: 123' https://httpbin.org/post
 import io.ktor.client.HttpClient
 import io.ktor.client.request.forms.FormDataContent
 import io.ktor.client.request.post
@@ -12,6 +12,8 @@ fun main() = runBlocking {
         followRedirects = false
     }
     val response = client.post("https://httpbin.org/post") {
+        headers.append("Custom", "123")
+
         setBody(FormDataContent(parameters {
             append("hello", "")
         }))

@@ -29,6 +29,7 @@ const (
 	HeaderOption
 	MethodOption
 	DataOption
+	RawDataOption
 	LocationOption
 	FormOption
 	ResolveOption
@@ -38,7 +39,8 @@ var oneArgOptions = map[string]curlOption{
 	"-H": HeaderOption, "--header": HeaderOption,
 	"-X": MethodOption, "--request": MethodOption,
 	"-d": DataOption, "--data": DataOption,
-	"-F": FormOption, "--form": FormOption,
+	"--data-raw": RawDataOption,
+	"-F":         FormOption, "--form": FormOption,
 	"--resolve": ResolveOption,
 }
 
@@ -165,6 +167,16 @@ func ParseCommand(cmd []string) (command *Command, err error) {
 					if request.Method == "" {
 						request.Method = "POST"
 					}
+				case RawDataOption:
+					if urlEncodedBody == nil {
+						urlEncodedBody = &UrlEncodedBody{}
+						request.Body = urlEncodedBody
+					}
+					urlEncodedBody.Params = append(urlEncodedBody.Params, parseRawData(inst.value[0])...)
+
+					if request.Method == "" {
+						request.Method = "POST"
+					}
 				case LocationOption:
 					command.FollowRedirects = true
 				case FormOption:
@@ -275,19 +287,25 @@ func parseData(str string) (params []FormParam) {
 		param.FilePath = strings.TrimPrefix(str, "@")
 		params = append(params, param)
 	} else {
-		for _, kv := range strings.Split(str, "&") {
-			param := FormParam{}
-			parts := strings.Split(kv, "=")
+		params = parseRawData(str)
+	}
 
-			if len(parts) == 2 {
-				param.Name = parts[0]
-				param.Value = parts[1]
-			} else {
-				param.Name = parts[0]
-			}
+	return
+}
 
-			params = append(params, param)
+func parseRawData(str string) (params []FormParam) {
+	for _, kv := range strings.Split(str, "&") {
+		param := FormParam{}
+		parts := strings.Split(kv, "=")
+
+		if len(parts) == 2 {
+			param.Name = parts[0]
+			param.Value = parts[1]
+		} else {
+			param.Name = parts[0]
 		}
+
+		params = append(params, param)
 	}
 
 	return
