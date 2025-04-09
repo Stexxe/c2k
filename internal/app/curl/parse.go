@@ -86,6 +86,7 @@ func ParseCommand(cmd []string) (command *Command, err error) {
 	var options []curlOptionInstance
 	request := &Request{}
 	command = &Command{Request: request}
+	var freeStandingArgs []string
 
 	if len(cmd) > 0 && cmd[0] == "curl" {
 		if len(cmd) > 1 {
@@ -102,7 +103,7 @@ func ParseCommand(cmd []string) (command *Command, err error) {
 							options = append(options, curlOptionInstance{option: opt})
 							i += 1
 						} else {
-							err = fmt.Errorf("curl: unexpected option %s", arg)
+							err = fmt.Errorf("parse curl: unexpected option %s", arg)
 							i += len(args) - i
 						}
 					} else {
@@ -135,17 +136,22 @@ func ParseCommand(cmd []string) (command *Command, err error) {
 								i += 1
 							}
 						} else {
-							err = fmt.Errorf("curl: unexpected option %s", arg)
+							err = fmt.Errorf("parse curl: unexpected option %s", arg)
 							i += len(args) - i
 						}
 					}
-				} else if strings.HasPrefix(arg, "http://") || strings.HasPrefix(arg, "https://") {
-					request.Url = arg
-					i += 1
 				} else {
-					err = fmt.Errorf("curl: unexpected argument %s", arg)
-					i += len(args) - i
+					freeStandingArgs = append(freeStandingArgs, arg)
+					i += 1
 				}
+			}
+
+			if len(freeStandingArgs) == 0 {
+				err = fmt.Errorf("parse curl: expected URL")
+			} else if len(freeStandingArgs) == 1 {
+				request.Url = freeStandingArgs[0]
+			} else {
+				err = fmt.Errorf("parse curl: unexpected arguments: %v", freeStandingArgs)
 			}
 
 			var userContentType string
