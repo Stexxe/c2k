@@ -139,8 +139,8 @@ func ParseCommand(cmd []string) (command *Command, err error) {
 								i += 1
 							}
 						} else {
-							err = fmt.Errorf("parse curl: unexpected option %s", arg)
-							i += len(args) - i
+							unexpectedOptions = append(unexpectedOptions, arg)
+							i++
 						}
 					}
 				} else {
