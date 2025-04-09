@@ -28,7 +28,7 @@ type CtorInvoke struct {
 }
 
 type MethodCall struct {
-	Receiver  string
+	Receiver  any
 	Method    string
 	ValueArgs []any // Value argument -> Expression
 }
@@ -53,7 +53,7 @@ type UserType Fqn
 type Import struct {
 	fqn Fqn
 }
-
+type Id string
 type Fqn []string
 
 type EmptyStatement struct{}
@@ -65,6 +65,14 @@ type LambdaLiteral struct {
 type InlineLambdaLiteral struct {
 	Statements []any // Statement
 }
+
+type ForInLoop struct {
+	Bind       any
+	Expr       any
+	Statements []any
+}
+
+type PairDestruct []string
 
 type PropAssignment struct {
 	Prop string

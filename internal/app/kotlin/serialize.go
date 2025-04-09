@@ -95,6 +95,29 @@ func writeStatement(w io.Writer, st *any, level int) (err error) {
 		err = writeExpr(w, &st.Expr, level)
 	case EmptyStatement:
 		// Do nothing
+	case ForInLoop:
+		_, err = fmt.Fprint(w, "for (")
+
+		switch bind := st.Bind.(type) {
+		case PairDestruct:
+			_, err = fmt.Fprint(w, "(")
+
+			sep := ""
+			for _, name := range bind {
+				_, err = fmt.Fprint(w, sep)
+				_, err = fmt.Fprint(w, name)
+				sep = ", "
+			}
+
+			_, err = fmt.Fprint(w, ")")
+		case string:
+			_, err = fmt.Fprint(w, bind)
+		}
+
+		_, err = fmt.Fprint(w, " in ")
+		err = writeExpr(w, &st.Expr, level)
+		_, err = fmt.Fprint(w, ") ")
+		err = writeBlock(w, st.Statements, level)
 	default:
 		err = writeExpr(w, &st, level)
 	}
@@ -107,13 +130,22 @@ func writeExpr(w io.Writer, expr *any, level int) (err error) {
 		err = writeFqn(w, (*Fqn)(&expr.Type))
 		err = writeValueArgs(w, expr.ValueArgs, level)
 	case MethodCall:
-		_, err = fmt.Fprintf(w, "%s.%s", expr.Receiver, expr.Method)
+		switch rec := expr.Receiver.(type) {
+		case string:
+			_, err = fmt.Fprint(w, rec)
+		default:
+			err = writeExpr(w, &rec, level)
+		}
+
+		_, err = fmt.Fprintf(w, ".%s", expr.Method)
 		err = writeValueArgs(w, expr.ValueArgs, level)
 	case FuncCall:
 		_, err = fmt.Fprintf(w, "%s", expr.Name)
 		err = writeValueArgs(w, expr.ValueArgs, level)
 	case PropAccess:
 		_, err = fmt.Fprintf(w, "%s.%s", expr.Object, expr.Prop)
+	case Id:
+		_, err = fmt.Fprint(w, expr)
 	case string:
 		if strings.Contains(expr, "\n") {
 			err = writeMultilineStr(w, expr, level)
@@ -127,11 +159,7 @@ func writeExpr(w io.Writer, expr *any, level int) (err error) {
 			_, err = fmt.Fprint(w, "false")
 		}
 	case LambdaLiteral:
-		_, err = fmt.Fprint(w, "{\n")
-		err = writeStatements(w, expr.Statements, level+1)
-		_, err = fmt.Fprintln(w)
-		err = writeIdent(w, level)
-		_, err = fmt.Fprint(w, "}")
+		err = writeBlock(w, expr.Statements, level)
 	case InlineLambdaLiteral:
 		if len(expr.Statements) != 1 {
 			log.Fatalf("expected 1 statement for InlineLambdaLiteral, got %d", len(expr.Statements))
@@ -142,6 +170,15 @@ func writeExpr(w io.Writer, expr *any, level int) (err error) {
 		_, err = fmt.Fprint(w, " }")
 	}
 
+	return
+}
+
+func writeBlock(w io.Writer, statements []any, level int) (err error) {
+	_, err = fmt.Fprint(w, "{\n")
+	err = writeStatements(w, statements, level+1)
+	_, err = fmt.Fprintln(w)
+	err = writeIdent(w, level)
+	_, err = fmt.Fprint(w, "}")
 	return
 }
 

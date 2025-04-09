@@ -8,6 +8,11 @@ var httpPackage = &Fqn{"io", "ktor", "http"}
 var coroutinesPackage = &Fqn{"kotlinx", "coroutines"}
 var javaIoPackage = &Fqn{"java", "io"}
 var cioUtilsPackage = &Fqn{"io", "ktor", "util", "cio"}
+var kotlinIOPackage = &Fqn{"kotlin", "io"}
+
+var autoImportedPackages = []*Fqn{
+	kotlinIOPackage,
+}
 
 var getRequest = buildFqn("get", requestPackage)
 var postRequest = buildFqn("post", requestPackage)
@@ -40,6 +45,9 @@ var bodyAsText = buildFqn("bodyAsText", clientStatementPackage)
 
 var fileCtor = buildFqn("File", javaIoPackage)
 var readChannel = buildFqn("readChannel", cioUtilsPackage)
+
+var readText = buildFqn("readText", kotlinIOPackage)
+var parseUrlEncodedParameters = buildFqn("parseUrlEncodedParameters", httpPackage)
 
 func buildFqn(name string, pack *Fqn) *Fqn {
 	fqn := append(Fqn{}, *pack...)

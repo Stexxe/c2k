@@ -68,7 +68,7 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 
 		requestBuilder.Statements = append(
 			requestBuilder.Statements,
-			callPropMethod(requestScope, "headers", "append", "Host", utils.UrlHost(request.Url)),
+			callPropMethod("headers", "append", "Host", utils.UrlHost(request.Url)),
 		)
 	}
 
@@ -80,7 +80,7 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 		for _, h := range request.Headers {
 			requestBuilder.Statements = append(
 				requestBuilder.Statements,
-				callPropMethod(requestScope, "headers", "append", h.Name, h.Value),
+				callPropMethod("headers", "append", h.Name, h.Value),
 			)
 		}
 
@@ -94,16 +94,38 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 		if requestBuilder == nil {
 			requestBuilder = &LambdaLiteral{}
 		}
-		var appends []any
 
+		var statements []any
 		for _, p := range b.Params {
-			appends = append(appends, FuncCall{Name: "append", ValueArgs: []any{p.Name, p.Value}})
+			if p.FilePath == "" {
+				statements = append(statements, FuncCall{Name: "append", ValueArgs: []any{p.Name, p.Value}})
+			} else {
+				varName := genFormVar(path.Base(p.FilePath)) + "Params"
+				addImport(imports, fileCtor)
+				addImport(imports, readText)
+				addImport(imports, parseUrlEncodedParameters)
+
+				params, decl := declareVal(
+					requestScope,
+					varName,
+					MethodCall{Receiver: MethodCall{Receiver: callCtor(fileCtor, p.FilePath), Method: simpleName(readText)}, Method: simpleName(parseUrlEncodedParameters)},
+				)
+				statements = append(statements, decl)
+
+				loop := ForInLoop{Bind: PairDestruct{"name", "values"}, Expr: callMethod(requestScope, params, "entries"), Statements: []any{
+					ForInLoop{Bind: "v", Expr: Id("values"), Statements: []any{
+						FuncCall{Name: "append", ValueArgs: []any{Id("name"), Id("v")}},
+					}},
+				}}
+
+				statements = append(statements, loop)
+			}
 		}
 
 		requestBuilder.Statements = append(requestBuilder.Statements, FuncCall{Name: simpleName(setBody), ValueArgs: []any{
 			CtorInvoke{Type: UserType{simpleName(formDataContent)}, ValueArgs: []any{
 				FuncCall{Name: simpleName(parameters), ValueArgs: []any{
-					LambdaLiteral{Statements: appends},
+					LambdaLiteral{Statements: statements},
 				}},
 			}},
 		}})
@@ -206,7 +228,17 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 	addImport(imports, bodyAsText)
 
 	for fqn := range imports {
-		file.ImportList = append(file.ImportList, Import{fqn: *fqn})
+		autoImported := false
+		for _, pack := range autoImportedPackages {
+			if hasPackage(pack, fqn) {
+				autoImported = true
+				break
+			}
+		}
+
+		if !autoImported {
+			file.ImportList = append(file.ImportList, Import{fqn: *fqn})
+		}
 	}
 
 	slices.SortFunc(file.ImportList, func(a, b Import) int {
@@ -234,6 +266,20 @@ func simpleName(fqn *Fqn) (name string) {
 	}
 
 	return
+}
+
+func hasPackage(pack *Fqn, fqn *Fqn) bool {
+	if len(*pack) > len(*fqn) {
+		return false
+	}
+
+	for i, part := range *pack {
+		if part != (*fqn)[i] {
+			return false
+		}
+	}
+
+	return true
 }
 
 func genFormVar(filename string) string {

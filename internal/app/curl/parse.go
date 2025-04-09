@@ -61,6 +61,7 @@ type FormDataBody struct {
 
 type FormParam struct {
 	Name, Value string
+	FilePath    string
 }
 
 type FormPartKind int
@@ -264,18 +265,24 @@ func parseFormPart(str string) (param FormPart) {
 }
 
 func parseData(str string) (params []FormParam) {
-	for _, kv := range strings.Split(str, "&") {
+	if strings.HasPrefix(str, "@") {
 		param := FormParam{}
-		parts := strings.Split(kv, "=")
-
-		if len(parts) == 2 {
-			param.Name = parts[0]
-			param.Value = parts[1]
-		} else {
-			param.Name = parts[0]
-		}
-
+		param.FilePath = strings.TrimPrefix(str, "@")
 		params = append(params, param)
+	} else {
+		for _, kv := range strings.Split(str, "&") {
+			param := FormParam{}
+			parts := strings.Split(kv, "=")
+
+			if len(parts) == 2 {
+				param.Name = parts[0]
+				param.Value = parts[1]
+			} else {
+				param.Name = parts[0]
+			}
+
+			params = append(params, param)
+		}
 	}
 
 	return

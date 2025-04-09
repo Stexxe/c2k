@@ -40,6 +40,10 @@ func callMethod(sc *Scope, obj *Object, method string, args ...any) (call Method
 	return
 }
 
-func callPropMethod(sc *Scope, prop, method string, args ...any) MethodCall {
+func callPropMethod(prop, method string, args ...any) MethodCall {
 	return MethodCall{Receiver: prop, Method: method, ValueArgs: args}
+}
+
+func callCtor(classFqn *Fqn, args ...any) CtorInvoke {
+	return CtorInvoke{Type: UserType{simpleName(classFqn)}, ValueArgs: args}
 }
