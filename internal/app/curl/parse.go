@@ -147,6 +147,7 @@ func ParseCommand(cmd []string) (command *Command, err error) {
 			}
 
 			var formBody *FormDataBody
+			var urlEncodedBody *UrlEncodedBody
 			for _, inst := range options {
 				switch inst.option {
 				case HeaderOption:
@@ -154,8 +155,12 @@ func ParseCommand(cmd []string) (command *Command, err error) {
 				case MethodOption:
 					request.Method = inst.value[0]
 				case DataOption:
-					// TODO: Join multiple data options
-					request.Body = UrlEncodedBody{Params: parseData(inst.value[0])}
+					if urlEncodedBody == nil {
+						urlEncodedBody = &UrlEncodedBody{}
+						request.Body = urlEncodedBody
+					}
+
+					urlEncodedBody.Params = append(urlEncodedBody.Params, parseData(inst.value[0])...)
 
 					if request.Method == "" {
 						request.Method = "POST"

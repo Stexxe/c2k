@@ -90,7 +90,7 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 	}
 
 	switch b := request.Body.(type) {
-	case curl.UrlEncodedBody:
+	case *curl.UrlEncodedBody:
 		if requestBuilder == nil {
 			requestBuilder = &LambdaLiteral{}
 		}
