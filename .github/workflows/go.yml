@@ -36,6 +36,7 @@ jobs:
       run: ls -la ./build
 
     - name: Upload the c2k binaries
+      if: ${{ github.event.release.tag_name != '' }}
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
