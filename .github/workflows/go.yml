@@ -13,7 +13,6 @@ on:
       - main
   release:
     types: [ published ]
-    branches: [main]
 
 jobs:
 
@@ -54,7 +53,7 @@ jobs:
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        tag: ${{ github.ref_name }}
+        tag: ${{github.event.release.tag_name }}
         file: ./build/c2k-*
         file_glob: true
    
