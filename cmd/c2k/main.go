@@ -11,8 +11,6 @@ import (
 	"strings"
 )
 
-// TODO: README and Github fields
-
 var Version string
 
 func main() {
