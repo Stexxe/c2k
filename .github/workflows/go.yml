@@ -11,6 +11,8 @@ on:
   workflow_dispatch:
     branches:
       - main
+  release:
+    types: [ published ]
 
 jobs:
 
