@@ -1,6 +1,7 @@
 package kotlin
 
 var clientPackage = &Fqn{"io", "ktor", "client"}
+var loggingPackage = &Fqn{"io", "ktor", "client", "plugins", "logging"}
 var requestPackage = &Fqn{"io", "ktor", "client", "request"}
 var formsPackage = &Fqn{"io", "ktor", "client", "request", "forms"}
 var clientStatementPackage = &Fqn{"io", "ktor", "client", "statement"}
@@ -48,6 +49,10 @@ var readChannel = buildFqn("readChannel", cioUtilsPackage)
 
 var readText = buildFqn("readText", kotlinIOPackage)
 var parseUrlEncodedParameters = buildFqn("parseUrlEncodedParameters", httpPackage)
+
+var logLevel = buildFqn("LogLevel", loggingPackage)
+var logging = buildFqn("Logging", loggingPackage)
+var loggingFormat = buildFqn("LoggingFormat", loggingPackage)
 
 func buildFqn(name string, pack *Fqn) *Fqn {
 	fqn := append(Fqn{}, *pack...)

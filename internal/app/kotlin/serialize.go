@@ -10,7 +10,9 @@ import (
 var defaultIndent = "    "
 
 func Serialize(w io.Writer, file *KtFile) (err error) {
-	level := 0
+	for _, comment := range file.TopComments {
+		_, err = fmt.Fprintf(w, "//%s\n", comment)
+	}
 
 	sep := ""
 	for _, imp := range file.ImportList {
@@ -21,7 +23,7 @@ func Serialize(w io.Writer, file *KtFile) (err error) {
 	}
 
 	_, err = fmt.Fprintln(w)
-
+	level := 0
 	for _, top := range file.TopLevels {
 		switch top := top.(type) {
 		case FuncDecl:

@@ -1,8 +1,9 @@
 package kotlin
 
 type KtFile struct {
-	ImportList []Import
-	TopLevels  []any // Top-level
+	TopComments []LineComment
+	ImportList  []Import
+	TopLevels   []any // Top-level
 }
 
 type FuncDecl struct {
@@ -78,3 +79,5 @@ type PropAssignment struct {
 	Prop string
 	Expr any
 }
+
+type LineComment string

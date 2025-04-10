@@ -14,7 +14,8 @@ sourceSets {
 
 dependencies {
     implementation(platform("io.ktor:ktor-bom:3.1.1"))
+    implementation("io.ktor:ktor-client-logging")
     implementation("io.ktor:ktor-client-core")
     implementation("io.ktor:ktor-client-cio")
-    implementation("ch.qos.logback:logback-classic:1.4.14")
+    implementation("org.slf4j:slf4j-simple:2.0.17")
 }

@@ -34,12 +34,29 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 
 	runBlockingScope := newScope()
 
+	var configStatements []any
 	var ctorArgs []any
 
-	if !command.FollowRedirects { // Ktor follows redirects by default
-		ctorArgs = append(ctorArgs, LambdaLiteral{Statements: []any{
-			PropAssignment{Prop: "followRedirects", Expr: command.FollowRedirects},
+	if command.VerboseOutput {
+		addImport(imports, logging)
+		addImport(imports, logLevel)
+		addImport(imports, loggingFormat)
+
+		configStatements = append(configStatements, FuncCall{Name: "install", ValueArgs: []any{
+			Id("Logging"),
+			LambdaLiteral{Statements: []any{
+				PropAssignment{Prop: "level", Expr: Id("LogLevel.HEADERS")},
+				PropAssignment{Prop: "format", Expr: Id("LoggingFormat.OkHttp")},
+			}},
 		}})
+	}
+
+	if !command.FollowRedirects { // Ktor follows redirects by default
+		configStatements = append(configStatements, PropAssignment{Prop: "followRedirects", Expr: command.FollowRedirects})
+	}
+
+	if len(configStatements) > 0 {
+		ctorArgs = append(ctorArgs, LambdaLiteral{Statements: configStatements})
 	}
 
 	client, clientDecl := declareVal(runBlockingScope, "client", CtorInvoke{Type: UserType{simpleName(httpClient)}, ValueArgs: ctorArgs})
@@ -284,6 +301,12 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 		if !autoImported {
 			file.ImportList = append(file.ImportList, Import{fqn: *fqn})
 		}
+	}
+
+	if command.VerboseOutput {
+		file.TopComments = append(file.TopComments, " Dependencies:")
+		file.TopComments = append(file.TopComments, " implementation(\"io.ktor:ktor-client-logging\")")
+		file.TopComments = append(file.TopComments, " implementation(\"org.slf4j:slf4j-simple\")")
 	}
 
 	slices.SortFunc(file.ImportList, func(a, b Import) int {

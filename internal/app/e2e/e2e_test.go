@@ -39,6 +39,11 @@ func TestConversion(t *testing.T) {
 			runes := []rune(l)
 
 			if len(runes) > 1 && runes[0] == '/' && runes[1] == '/' {
+				if strings.TrimSpace(string(runes[2:])) == "Dependencies:" {
+					expCode = strings.Join(lines[i:], "\n")
+					break
+				}
+
 				curlCommand.WriteString(sep)
 
 				startOffset := 2
