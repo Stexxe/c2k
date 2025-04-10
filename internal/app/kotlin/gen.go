@@ -3,7 +3,6 @@ package kotlin
 import (
 	"c2k/internal/app/curl"
 	"c2k/internal/app/utils"
-	"errors"
 	"fmt"
 	"log"
 	"path"
@@ -12,7 +11,7 @@ import (
 	"unicode"
 )
 
-func GenAst(command *curl.Command) (file *KtFile, err error) {
+func GenAst(command *curl.Command) (file *KtFile) {
 	file = &KtFile{}
 	builderFound := false
 	methodFunc := requestRequest
@@ -216,8 +215,7 @@ func GenAst(command *curl.Command) (file *KtFile, err error) {
 					fdStatements = append(fdStatements, EmptyStatement{})
 				}
 			case curl.FormPartUnknown:
-				err = errors.New("form-data-body: unrecognized form part type")
-				return
+				// Do nothing
 			}
 		}
 

@@ -3,6 +3,7 @@ package main
 import (
 	"c2k/internal/app/curl"
 	"c2k/internal/app/kotlin"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -10,8 +11,6 @@ import (
 	"strings"
 )
 
-// TODO: Verbose mode is superset of include mode
-// TODO: Error reporting
 // TODO: README and Github fields
 
 var Version string
@@ -29,15 +28,26 @@ func main() {
 
 	command, err := curl.ParseCommand(os.Args[1:])
 
-	if err != nil {
-		log.Fatal(err)
+	var parseErr *curl.ParseError
+	if errors.As(err, &parseErr) {
+		switch parseErr.Kind {
+		case curl.WarningKind:
+			if len(parseErr.UnexpectedOptions) > 0 {
+				_, _ = fmt.Fprintf(os.Stderr, "Skipping unexpected option[s]: %s\n", strings.Join(parseErr.UnexpectedOptions, " "))
+			}
+		case curl.NoCurlCommandKind:
+			_, _ = fmt.Fprintf(os.Stderr, "Expected curl command, got %s\n", strings.Join(os.Args[1:], " "))
+			os.Exit(1)
+		case curl.NoUrlKind:
+			_, _ = fmt.Fprintf(os.Stderr, "Expected URL argument for the curl command\n")
+			os.Exit(1)
+		case curl.UnknownParseErrorKind:
+			_, _ = fmt.Fprintf(os.Stderr, "Unknown error occured while parsing the curl command\n")
+			os.Exit(1)
+		}
 	}
 
-	ktFile, err := kotlin.GenAst(command)
-
-	if err != nil {
-		log.Fatal(err)
-	}
+	ktFile := kotlin.GenAst(command)
 
 	err = kotlin.Serialize(os.Stdout, ktFile)
 	fmt.Println()

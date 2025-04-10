@@ -1,7 +1,6 @@
 package curl
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -90,12 +89,40 @@ type FormPart struct {
 	ContentType string
 }
 
+type ParseErrorKind int
+
+const (
+	UnknownParseErrorKind ParseErrorKind = iota
+	WarningKind
+	NoCurlCommandKind
+	NoUrlKind
+)
+
+type ParseError struct {
+	Kind              ParseErrorKind
+	UnexpectedOptions []string
+}
+
+func (p ParseError) Error() string {
+	switch p.Kind {
+	case NoCurlCommandKind:
+		return "curl parse: curl command expected"
+	case NoUrlKind:
+		return "curl parse: expected URL"
+	case UnknownParseErrorKind:
+		return "curl parse: unknown parse error"
+	default:
+		return "curl parse: unknown parse error"
+	}
+}
+
 func ParseCommand(cmd []string) (command *Command, err error) {
 	var options []curlOptionInstance
 	request := &Request{}
 	command = &Command{Request: request}
 	var freeStandingArgs []string
-	var unexpectedOptions []string
+
+	parseErr := &ParseError{}
 
 	if len(cmd) > 0 && cmd[0] == "curl" {
 		if len(cmd) > 1 {
@@ -112,7 +139,7 @@ func ParseCommand(cmd []string) (command *Command, err error) {
 							options = append(options, curlOptionInstance{option: opt})
 							i += 1
 						} else {
-							unexpectedOptions = append(unexpectedOptions, arg)
+							parseErr.UnexpectedOptions = append(parseErr.UnexpectedOptions, arg)
 							i++
 						}
 					} else {
@@ -145,7 +172,7 @@ func ParseCommand(cmd []string) (command *Command, err error) {
 								i += 1
 							}
 						} else {
-							unexpectedOptions = append(unexpectedOptions, arg)
+							parseErr.UnexpectedOptions = append(parseErr.UnexpectedOptions, arg)
 							i++
 						}
 					}
@@ -155,17 +182,8 @@ func ParseCommand(cmd []string) (command *Command, err error) {
 				}
 			}
 
-			if len(unexpectedOptions) > 0 {
-				err = fmt.Errorf("parse curl: unexpected options: %s", strings.Join(unexpectedOptions, " "))
-				return
-			}
-
-			if len(freeStandingArgs) == 0 {
-				err = fmt.Errorf("parse curl: expected URL")
-			} else if len(freeStandingArgs) == 1 {
+			if len(freeStandingArgs) == 1 {
 				request.Url = freeStandingArgs[0]
-			} else {
-				err = fmt.Errorf("parse curl: unexpected arguments: %v", freeStandingArgs)
 			}
 
 			var userContentType string
@@ -253,7 +271,7 @@ func ParseCommand(cmd []string) (command *Command, err error) {
 				case VerboseOption:
 					command.VerboseOutput = true
 				case UnknownOption:
-					err = fmt.Errorf("curl: unknown option")
+					// Do nothing
 				}
 			}
 
@@ -264,11 +282,29 @@ func ParseCommand(cmd []string) (command *Command, err error) {
 			if request.Method == "" {
 				request.Method = "GET"
 			}
-		} else {
-			err = fmt.Errorf("curl: expected URL, got none")
 		}
 	} else {
-		err = fmt.Errorf("curl: invalid curl command '%s'", strings.Join(cmd, " "))
+		parseErr.Kind = NoCurlCommandKind
+	}
+
+	if parseErr.Kind == UnknownParseErrorKind {
+		if len(freeStandingArgs) == 0 {
+			parseErr.Kind = NoUrlKind
+		} else if len(freeStandingArgs) > 1 {
+			for _, arg := range freeStandingArgs {
+				if !strings.HasPrefix(arg, "-") {
+					request.Url = arg
+				}
+			}
+		}
+
+		if len(parseErr.UnexpectedOptions) > 0 {
+			parseErr.Kind = WarningKind
+		}
+	}
+
+	if parseErr.Kind != UnknownParseErrorKind {
+		err = parseErr
 	}
 
 	return

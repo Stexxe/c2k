@@ -72,11 +72,7 @@ func TestConversion(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		ktFile, err := kotlin.GenAst(command)
-
-		if err != nil {
-			t.Fatalf("%s: unexpected error %s", e.Name(), err)
-		}
+		ktFile := kotlin.GenAst(command)
 
 		var actual strings.Builder
 		err = kotlin.Serialize(&actual, ktFile)
