@@ -38,6 +38,14 @@ jobs:
     - name: List compiled binaries
       run: ls -la ./build
 
+    - name: Print variables
+      run: |
+        echo "Repository: $GITHUB_REPOSITORY"
+        echo "Branch: $GITHUB_REF_NAME"
+        echo "SHA: $GITHUB_SHA"
+        echo "Tag name: ${{ github.event.release.tag_name }}"
+        echo "Ref name: ${{ github.ref_name }}"
+
     - name: Upload the c2k binaries
       if: ${{ github.event.release.tag_name != '' }}
       uses: svenstaro/upload-release-action@v2
