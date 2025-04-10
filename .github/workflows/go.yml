@@ -29,6 +29,6 @@ jobs:
     - name: Build OSX Intel
       run: CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o build/c2k-osx-amd64 -ldflags="-X main.Version=${{ github.event.release.tag_name }}" github.com/Stexxe/c2k/cmd/c2k
     - name: Build OSX Apple silicon
-      run: CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o build/c2k-osx-arm64 -ldflags="-X main.Version=${{ github.event.release.tag_name }}" github.com/Stexxe/c2k/cmd/c2k
+      run: CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o build/c2k-osx-arm64 -ldflags="-X main.Version=${{ github.event.release.tag_name }}" github.com/Stexxe/c2k/cmd/c2k
 
    
