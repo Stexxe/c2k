@@ -14,6 +14,6 @@ As a result, the generated code will be printed to stdout.
 ## Install
 
 1. Go to the [GitHub releases page](https://github.com/Stexxe/c2k/releases) and download the appropriate binary
-2. Make it executable `chmod +x <c2k-*>  # Replace with the correct filename`
-3. Move it to a PATH directory: `sudo mv <c2k-*> /usr/local/bin/c2k`
+2. Make it executable `chmod +x c2k-...  # Replace with the correct filename`
+3. Move it to a PATH directory: `sudo mv c2k-... /usr/local/bin/c2k`
 4. Verify it works: `c2k --version`
