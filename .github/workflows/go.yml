@@ -33,11 +33,11 @@ jobs:
     - name: List compiled binaries
       run: ls -la ./build
 
-    name: Upload the c2k binaries
-    uses: svenstaro/upload-release-action@v2
-    with:
-      repo_token: ${{ secrets.GITHUB_TOKEN }}
-      tag: ${{ github.ref }}
-      file: ./build/c2k-*
-      file_glob: true
+    - name: Upload the c2k binaries
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        tag: ${{ github.ref }}
+        file: ./build/c2k-*
+        file_glob: true
    
