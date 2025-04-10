@@ -1,10 +1,10 @@
 package e2e
 
 import (
-	"c2k/internal/app/curl"
-	"c2k/internal/app/kotlin"
-	"c2k/internal/app/utils"
 	"fmt"
+	"github.com/Stexxe/c2k/internal/app/curl"
+	"github.com/Stexxe/c2k/internal/app/kotlin"
+	"github.com/Stexxe/c2k/internal/app/utils"
 	"os"
 	"path/filepath"
 	"strings"

@@ -251,13 +251,13 @@ func writeValueArgs(w io.Writer, args []any, level int) (err error) {
 						_, err = fmt.Fprint(w, ") ")
 						err = writeExpr(w, &va, level)
 					} else {
-						_, err = fmt.Fprintf(w, sep)
+						_, err = fmt.Fprint(w, sep)
 						sep = ", "
 						err = writeSimpleArg(va)
 						_, err = fmt.Fprint(w, ")")
 					}
 				} else {
-					_, err = fmt.Fprintf(w, sep)
+					_, err = fmt.Fprint(w, sep)
 					sep = ", "
 					err = writeSimpleArg(va)
 				}
@@ -270,7 +270,7 @@ func writeValueArgs(w io.Writer, args []any, level int) (err error) {
 
 func writeIdent(w io.Writer, level int) (err error) {
 	for i := 0; i < level; i++ {
-		_, err = fmt.Fprintf(w, defaultIndent)
+		_, err = fmt.Fprint(w, defaultIndent)
 	}
 
 	return

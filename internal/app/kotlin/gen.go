@@ -1,9 +1,9 @@
 package kotlin
 
 import (
-	"c2k/internal/app/curl"
-	"c2k/internal/app/utils"
 	"fmt"
+	"github.com/Stexxe/c2k/internal/app/curl"
+	"github.com/Stexxe/c2k/internal/app/utils"
 	"log"
 	"path"
 	"slices"

@@ -1,10 +1,10 @@
 package main
 
 import (
-	"c2k/internal/app/curl"
-	"c2k/internal/app/kotlin"
 	"errors"
 	"fmt"
+	"github.com/Stexxe/c2k/internal/app/curl"
+	"github.com/Stexxe/c2k/internal/app/kotlin"
 	"log"
 	"os"
 	"runtime/debug"
