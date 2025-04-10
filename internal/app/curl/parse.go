@@ -257,6 +257,10 @@ func ParseCommand(cmd []string) (command *Command, err error) {
 				}
 			}
 
+			if command.VerboseOutput {
+				command.PrintResponseHeaders = false
+			}
+
 			if request.Method == "" {
 				request.Method = "GET"
 			}
